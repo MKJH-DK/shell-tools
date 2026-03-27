@@ -1,0 +1,359 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# askall - Send same prompt to multiple AI CLIs, collect responses
+# Usage: askall "your question here"
+#        askall -f prompt.txt
+#        askall -o basename "your question"
+#        echo "question" | askall
+
+ASKALL_VERSION="1.0.0"
+
+# ── Load config ──────────────────────────────────────
+ASKALL_CONFIG="${ASKALL_CONFIG:-$HOME/.config/askall/config.env}"
+if [[ -f "$ASKALL_CONFIG" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${line// /}" ]] && continue
+    if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      local_key="${BASH_REMATCH[1]}"
+      local_val="${BASH_REMATCH[2]}"
+      [[ -z "${!local_key:-}" ]] && export "$local_key=$local_val"
+    fi
+  done < "$ASKALL_CONFIG"
+fi
+
+OUTDIR="${ASKALL_DIR:-$HOME/askall-responses}"
+mkdir -p "$OUTDIR"
+
+# Parse arguments
+PROMPT=""
+OUTPUT_BASE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -f)
+      if [[ -r "${2:-}" ]]; then
+        PROMPT="$(cat "$2")"
+        shift 2
+      else
+        echo "Error: cannot read file '${2:-}'"
+        exit 1
+      fi
+      ;;
+    -o)
+      OUTPUT_BASE="${2:-}"
+      [[ -z "$OUTPUT_BASE" ]] && { echo "Error: -o requires a base name"; exit 1; }
+      OUTPUT_BASE="${OUTPUT_BASE%.txt}"
+      shift 2
+      ;;
+    --config)
+      config_bin="${BASH_SOURCE[0]%/*}/askall-config"
+      if [[ -x "$config_bin" ]]; then
+        exec "$config_bin"
+      elif command -v askall-config >/dev/null 2>&1; then
+        exec askall-config
+      else
+        echo "Config: $ASKALL_CONFIG"
+        if [[ -f "$ASKALL_CONFIG" ]]; then
+          cat "$ASKALL_CONFIG"
+        else
+          echo "(no config file — run askall-config to configure)"
+        fi
+      fi
+      exit 0
+      ;;
+    --version|-v)
+      echo "askall $ASKALL_VERSION"
+      exit 0
+      ;;
+    *)
+      PROMPT="$*"
+      break
+      ;;
+  esac
+done
+if [[ -z "$PROMPT" ]] && [[ ! -t 0 ]]; then
+  PROMPT="$(cat)"
+fi
+
+# ── Inline file paths ──────────────────────────────────
+# Auto-detect file paths (/, ~/) in the prompt and inline their contents
+inline_files() {
+  local text="$1"
+  local result=""
+  local inlined=0
+
+  while IFS= read -r line; do
+    # Check if entire line is a file path (possibly with spaces)
+    local trimmed="${line#"${line%%[![:space:]]*}"}"
+    trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+    local expanded="${trimmed/#\~/$HOME}"
+    if [[ -n "$expanded" ]] && [[ "$expanded" =~ ^/ ]] && [[ -f "$expanded" ]] && [[ -r "$expanded" ]]; then
+      local fname
+      fname="$(basename "$expanded")"
+      local contents
+      contents="$(cat "$expanded")"
+      result+="<file: ${fname}>
+${contents}
+</file>
+"
+      ((++inlined))
+    else
+      # Also check individual words for inline paths (no spaces)
+      local new_line=""
+      for word in $line; do
+        local wexp="${word/#\~/$HOME}"
+        if [[ "$wexp" =~ ^/ ]] && [[ -f "$wexp" ]] && [[ -r "$wexp" ]]; then
+          local wname
+          wname="$(basename "$wexp")"
+          local wcontents
+          wcontents="$(cat "$wexp")"
+          new_line+="<file: ${wname}>
+${wcontents}
+</file> "
+          ((++inlined))
+        else
+          new_line+="$word "
+        fi
+      done
+      result+="${new_line%% }
+"
+    fi
+  done <<< "$text"
+
+  if [[ $inlined -gt 0 ]]; then
+    echo "  Inlined $inlined file(s) into prompt" >&2
+  fi
+  printf '%s' "${result%$'\n'}"
+}
+
+PROMPT="$(inline_files "$PROMPT")"
+
+if [[ -z "$PROMPT" ]]; then
+  echo "Usage: askall \"your question\""
+  echo "       askall -f prompt.txt"
+  echo "       askall -o basename \"your question\""
+  echo "       echo \"question\" | askall"
+  echo ""
+  echo "Options:"
+  echo "  -f FILE       Load prompt from file"
+  echo "  -o BASENAME   Output as BASENAME_model.txt (e.g. -o report -> report_claude.txt)"
+  echo "  --config      Open configuration TUI"
+  echo "  --version     Show version"
+  echo ""
+  echo "Sends the same prompt to all available AI CLIs and saves responses."
+  echo "Config: $ASKALL_CONFIG"
+  echo "Output: $OUTDIR/"
+  echo ""
+  echo "Available CLIs:"
+  for cli in claude gemini sgpt codex skwl qwen-code; do
+    key="ASKALL_ENABLE_${cli^^}"
+    # Replace hyphen with underscore for variable name
+    key="${key//-/_}"
+    [[ "$cli" == "qwen-code" ]] && key="ASKALL_ENABLE_QWEN_CODE"
+    enabled=$(eval echo "\${$key:-true}")
+
+    if [[ "$enabled" != "true" ]]; then
+      echo "  [ ] $cli (disabled in config)"
+    elif command -v "$cli" >/dev/null 2>&1; then
+      echo "  [x] $cli"
+    else
+      echo "  [ ] $cli (not installed)"
+    fi
+  done
+  exit 0
+fi
+
+# Timestamp for this run
+TS="$(date +%Y%m%d-%H%M%S)"
+RUNDIR="$OUTDIR/$TS"
+mkdir -p "$RUNDIR"
+
+# Save the prompt
+printf '%s\n' "$PROMPT" > "$RUNDIR/prompt.txt"
+
+# Collect CLIs (config > auto-detect)
+TOOLS=()
+if [[ -n "${ASKALL_TOOLS:-}" ]] && [[ "${ASKALL_TOOLS:-}" != "auto" ]]; then
+  IFS=',' read -ra _configured <<< "$ASKALL_TOOLS"
+  for t in "${_configured[@]}"; do
+    t="${t// /}"
+    if command -v "$t" >/dev/null 2>&1; then
+      TOOLS+=("$t")
+    else
+      echo "  Warning: configured tool '$t' not found, skipping" >&2
+    fi
+  done
+else
+  possible_tools=("claude" "gemini" "sgpt" "codex" "skwl" "qwen-code")
+  for t in "${possible_tools[@]}"; do
+    key="ASKALL_ENABLE_${t^^}"
+    key="${key//-/_}"
+    [[ "$t" == "qwen-code" ]] && key="ASKALL_ENABLE_QWEN_CODE"
+    enabled=$(eval echo "\${$key:-true}")
+    if [[ "$enabled" == "true" ]] && command -v "$t" >/dev/null 2>&1; then
+      TOOLS+=("$t")
+    fi
+  done
+fi
+
+# Apply max tools limit
+MAX_TOOLS="${ASKALL_MAX_TOOLS:-0}"
+if [[ "$MAX_TOOLS" -gt 0 ]] && [[ "${#TOOLS[@]}" -gt "$MAX_TOOLS" ]]; then
+  TOOLS=("${TOOLS[@]:0:$MAX_TOOLS}")
+fi
+
+if [[ ${#TOOLS[@]} -eq 0 ]]; then
+  echo "Error: No AI CLI tools available. Install or configure at least one of: claude, gemini, sgpt"
+  exit 1
+fi
+
+echo "Prompt: $(head -c 80 <<< "$PROMPT")$([ ${#PROMPT} -gt 80 ] && echo '...')"
+echo "Tools:  ${TOOLS[*]}"
+echo "Output: $RUNDIR/"
+echo ""
+
+# Run each tool in background, collect results
+PIDS=()
+for tool in "${TOOLS[@]}"; do
+  (
+    if [[ -n "$OUTPUT_BASE" ]]; then
+      outfile="$RUNDIR/${OUTPUT_BASE}_${tool}.txt"
+    else
+      outfile="$RUNDIR/${tool}.txt"
+    fi
+    echo "--- $tool ---" > "$outfile"
+    echo "Timestamp: $(date -Iseconds)" >> "$outfile"
+    echo "" >> "$outfile"
+
+    case "$tool" in
+      claude)
+        cmodel="${ASKALL_CLAUDE_MODEL:-}"
+        if [[ -n "$cmodel" ]] && [[ "$cmodel" != "default" ]]; then
+          claude --print --model "$cmodel" "$PROMPT" >> "$outfile" 2>&1 || echo "[ERROR] claude failed" >> "$outfile"
+        else
+          claude --print "$PROMPT" >> "$outfile" 2>&1 || echo "[ERROR] claude failed" >> "$outfile"
+        fi
+        ;;
+      gemini)
+        gmodel="${ASKALL_GEMINI_MODEL:-gemini-2.5-flash}"
+        gemini -m "$gmodel" -p "$PROMPT" >> "$outfile" 2>&1 || echo "[ERROR] gemini failed" >> "$outfile"
+        ;;
+      sgpt)
+        smodel="${ASKALL_SGPT_MODEL:-}"
+        if [[ -x "$HOME/.local/bin/ask" ]]; then
+          if [[ -n "$smodel" ]] && [[ "$smodel" != "default" ]]; then
+            "$HOME/.local/bin/ask" -m "$smodel" "$PROMPT"
+          else
+            "$HOME/.local/bin/ask" "$PROMPT"
+          fi
+        else
+          if [[ -n "$smodel" ]] && [[ "$smodel" != "default" ]]; then
+            sgpt --model "$smodel" "$PROMPT"
+          else
+            sgpt "$PROMPT"
+          fi
+        fi >> "$outfile" 2>&1 || echo "[ERROR] sgpt failed" >> "$outfile"
+        ;;
+      codex)
+        cmodel="${ASKALL_CODEX_MODEL:-}"
+        if [[ -n "$cmodel" ]] && [[ "$cmodel" != "default" ]]; then
+          codex -m "$cmodel" "$PROMPT"
+        else
+          codex "$PROMPT"
+        fi >> "$outfile" 2>&1 || echo "[ERROR] codex failed" >> "$outfile"
+        ;;
+      skwl)
+        smodel="${ASKALL_SKWL_MODEL:-}"
+        if [[ -n "$smodel" ]] && [[ "$smodel" != "default" ]]; then
+          skwl -m "$smodel" "$PROMPT"
+        else
+          skwl "$PROMPT"
+        fi >> "$outfile" 2>&1 || echo "[ERROR] skwl failed" >> "$outfile"
+        ;;
+      qwen-code)
+        qmodel="${ASKALL_QWEN_MODEL:-}"
+        if [[ -n "$qmodel" ]] && [[ "$qmodel" != "default" ]]; then
+          qwen-code -m "$qmodel" "$PROMPT"
+        else
+          qwen-code "$PROMPT"
+        fi >> "$outfile" 2>&1 || echo "[ERROR] qwen-code failed" >> "$outfile"
+        ;;
+    esac
+  ) &
+  PIDS+=($!)
+  echo "  Started: $tool (PID $!)"
+done
+
+# Wait for all to finish
+echo ""
+FAILED=0
+for i in "${!PIDS[@]}"; do
+  pid="${PIDS[$i]}"
+  tool="${TOOLS[$i]}"
+  if wait "$pid"; then
+    echo "  Done: $tool"
+  else
+    echo "  FAIL: $tool"
+    FAILED=$((FAILED + 1))
+  fi
+done
+
+# Build combined output file
+if [[ -n "$OUTPUT_BASE" ]]; then
+  COMBINED="$RUNDIR/${OUTPUT_BASE}_combined.txt"
+else
+  COMBINED="$RUNDIR/combined.txt"
+fi
+{
+  echo "======================================================="
+  echo "  askall - Multi-AI Response"
+  echo "  Date: $(date -Iseconds)"
+  echo "======================================================="
+  echo ""
+  echo "PROMPT:"
+  echo "-------------------------------------------------------"
+  cat "$RUNDIR/prompt.txt"
+  echo ""
+  echo "-------------------------------------------------------"
+
+  for tool in "${TOOLS[@]}"; do
+    if [[ -n "$OUTPUT_BASE" ]]; then
+      outfile="$RUNDIR/${OUTPUT_BASE}_${tool}.txt"
+    else
+      outfile="$RUNDIR/${tool}.txt"
+    fi
+    echo ""
+    echo ""
+    echo "+======================================================="
+    echo "| $(echo "$tool" | tr '[:lower:]' '[:upper:]')"
+    echo "+======================================================="
+    echo ""
+    if [[ -f "$outfile" ]]; then
+      # Skip the header lines we added
+      tail -n +4 "$outfile"
+    else
+      echo "[No response]"
+    fi
+  done
+
+  echo ""
+  echo ""
+  echo "======================================================="
+  echo "  Tools: ${TOOLS[*]}"
+  echo "  Failed: $FAILED / ${#TOOLS[@]}"
+  echo "======================================================="
+} > "$COMBINED"
+
+echo ""
+echo "Results saved to:"
+echo "  Combined: $COMBINED"
+if [[ -n "$OUTPUT_BASE" ]]; then
+  echo "  Individual: $RUNDIR/${OUTPUT_BASE}_{$(IFS=,; echo "${TOOLS[*]}")}.txt"
+else
+  echo "  Individual: $RUNDIR/{$(IFS=,; echo "${TOOLS[*]}")}.txt"
+fi
+echo ""
+
+# Print combined to stdout as well
+cat "$COMBINED"

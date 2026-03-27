@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(command -v fzf)",
+      "Bash(bash index.sh --run)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(bash index.sh)",
+      "Bash(bash -x index.sh --run)",
+      "Bash(bash index.sh --list 2>&1)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Read(//data/data/com.termux/files/home/.local/bin/**)",
+      "Bash(askall)",
+      "Bash(echo $PATH)",
+      "Bash(for cli:*)",
+      "Bash(do printf:*)",
+      "Bash(which \"$cli\")",
+      "Bash(done)",
+      "Bash(gemini --version)",
+      "Bash(gemini --help)",
+      "Bash(pip show:*)",
+      "Bash(python3 -c \"from sgpt import cli\")",
+      "Read(//data/data/com.termux/files/home/.config/shell_gpt/**)",
+      "Bash(env)",
+      "Bash(sed s/=.*/=***/)",
+      "Read(//data/data/com.termux/files/home/**)",
+      "Bash(sed s/\\\\\\(.{20}\\\\\\).*/1.../)",
+      "Bash(find /storage/emulated/0/vault -maxdepth 3 -name .env -o -name *.env)",
+      "Bash(find ~ -maxdepth 2 -name .env -o -name *.env)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\)\")",
+      "WebSearch",
+      "Bash(grep:*)",
+      "Bash(sgpt \"say hello in one word\")",
+      "Bash(curl -s -w \"\\\\nHTTP_CODE:%{http_code}\" https://openrouter.ai/api/v1/models -H \"Authorization: Bearer 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\")",
+      "Bash(askall 'opsummer /tmp/test-inline.txt')",
+      "Bash(TMPDIR=/data/data/com.termux/files/usr/tmp find /storage/emulated/0/vault -maxdepth 2 -name \"AGENTS.md\" 2>/dev/null)",
+      "Bash(export TMPDIR=$PREFIX/tmp)",
+      "Bash(TMPDIR=/data/data/com.termux/files/usr/tmp ls /storage/emulated/0/vault/04-repos/01-active/shell-setup/)",
+      "Bash(TMPDIR=/data/data/com.termux/files/usr/tmp mkdir -p /storage/emulated/0/vault/04-repos/01-active/askall)"
+    ]
+  }
+}

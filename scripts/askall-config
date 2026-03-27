@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# askall-config - Robust TUI for askall
+set -u
+
+# ── Styling ──────────────────────────────────────────────
+REV='\033[7m'
+NORM='\033[0m'
+BOLD='\033[1m'
+DIM='\033[2m'
+CLR='\033[2J'
+HOME_CSR='\033[H'
+
+# ── Config Path ──────────────────────────────────────────
+ASKALL_CONFIG="${ASKALL_CONFIG:-$HOME/.config/askall/config.env}"
+ASKALL_CONFIG_DIR="$(dirname "$ASKALL_CONFIG")"
+
+# ── Models ───────────────────────────────────────────────
+CLAUDE_MODELS=("claude-opus-4-6" "claude-sonnet-4-6" "claude-haiku-4-5-20251001" "claude-sonnet-4-20250514" "claude-3-5-sonnet-20241022")
+GEMINI_MODELS=("gemini-3" "gemini-2.5-pro" "gemini-2.5-flash" "gemini-2.0-flash" "gemini-2.0-flash-lite")
+SGPT_MODELS=("gpt-4.6" "gpt-4.1" "gpt-4.1-mini" "gpt-4.1-nano" "o3" "o4-mini" "gpt-4o" "gpt-4o-mini")
+CODEX_MODELS=("code-davinci-002" "code-cushman-001")
+SKWL_MODELS=("ogsp-v1" "ogsp-v2" "default")
+QWEN_MODELS=("qwen-coder-plus" "qwen-coder-32b" "qwen-coder-14b" "qwen-coder-7b")
+
+# ── Global State (Tracker Variables) ─────────────────────
+ASKALL_TOOLS="auto"
+ASKALL_CLAUDE_MODEL="default"
+ASKALL_GEMINI_MODEL="default"
+ASKALL_SGPT_MODEL="default"
+ASKALL_CODEX_MODEL="default"
+ASKALL_SKWL_MODEL="default"
+ASKALL_QWEN_MODEL="default"
+ASKALL_DIR="$HOME/askall-responses"
+ASKALL_ENABLE_CLAUDE="true"
+ASKALL_ENABLE_GEMINI="true"
+ASKALL_ENABLE_SGPT="true"
+ASKALL_ENABLE_CODEX="true"
+ASKALL_ENABLE_SKWL="true"
+ASKALL_ENABLE_QWEN_CODE="true"
+
+# ── Functions ────────────────────────────────────────────
+
+load_config() {
+  if [[ -f "$ASKALL_CONFIG" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      # Strip potential leading # and spaces, but keep the key=val part
+      clean_line=$(echo "$line" | sed 's/^[[:space:]]*#[[:space:]]*//' | xargs)
+      [[ -z "$clean_line" ]] && continue
+      
+      if [[ "$clean_line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+        key="${BASH_REMATCH[1]}"
+        val="${BASH_REMATCH[2]}"
+        # Strip quotes and carriage returns
+        val=$(echo "$val" | tr -d '"'\''\r' | xargs)
+        
+        case "$key" in
+          ASKALL_TOOLS) ASKALL_TOOLS="$val" ;;
+          ASKALL_CLAUDE_MODEL) ASKALL_CLAUDE_MODEL="$val" ;;
+          ASKALL_GEMINI_MODEL) ASKALL_GEMINI_MODEL="$val" ;;
+          ASKALL_SGPT_MODEL) ASKALL_SGPT_MODEL="$val" ;;
+          ASKALL_CODEX_MODEL) ASKALL_CODEX_MODEL="$val" ;;
+          ASKALL_SKWL_MODEL) ASKALL_SKWL_MODEL="$val" ;;
+          ASKALL_QWEN_MODEL) ASKALL_QWEN_MODEL="$val" ;;
+          ASKALL_DIR) ASKALL_DIR="$val" ;;
+          ASKALL_ENABLE_CLAUDE) ASKALL_ENABLE_CLAUDE="$val" ;;
+          ASKALL_ENABLE_GEMINI) ASKALL_ENABLE_GEMINI="$val" ;;
+          ASKALL_ENABLE_SGPT) ASKALL_ENABLE_SGPT="$val" ;;
+          ASKALL_ENABLE_CODEX) ASKALL_ENABLE_CODEX="$val" ;;
+          ASKALL_ENABLE_SKWL) ASKALL_ENABLE_SKWL="$val" ;;
+          ASKALL_ENABLE_QWEN_CODE) ASKALL_ENABLE_QWEN_CODE="$val" ;;
+        esac
+      fi
+    done < "$ASKALL_CONFIG"
+  fi
+}
+
+save_config() {
+  local key="$1"
+  local value="$2"
+  [[ -z "$key" ]] && return
+  
+  # 1. Update memory immediately so the UI reflects the change
+  eval "${key}=\"${value}\""
+  
+  # 2. Update the config file
+  mkdir -p "$ASKALL_CONFIG_DIR"
+  touch "$ASKALL_CONFIG"
+  
+  local tmp
+  tmp=$(mktemp "${TMPDIR:-/tmp}/askall.XXXXXX" 2>/dev/null || mktemp)
+  
+  # Filter out any existing entries for this key (including comments) and malformed lines
+  grep -vE "^[[:space:]]*#?[[:space:]]*${key}=" "$ASKALL_CONFIG" | grep -v "^=" > "$tmp" || true
+  
+  # Append the new value
+  echo "${key}=${value}" >> "$tmp"
+  mv "$tmp" "$ASKALL_CONFIG"
+}
+
+get_term_size() {
+  if command -v tput >/dev/null 2>&1; then
+    TERM_H=$(tput lines); TERM_W=$(tput cols)
+  else
+    TERM_H=24; TERM_W=80
+  fi
+}
+
+draw_screen() {
+  local title="$1"; local -n _opts=$2; local selected=$3
+  get_term_size
+  printf "${CLR}${HOME_CSR}${REV}%-${TERM_W}.${TERM_W}s${NORM}\n\n" "  askall config | $title"
+  
+  local lbl_w=$(( TERM_W * 35 / 100 )); [[ $lbl_w -lt 15 ]] && lbl_w=15
+  local dsc_w=$(( TERM_W - lbl_w - 5 ))
+  
+  for i in "${!_opts[@]}"; do
+    IFS='|' read -r label desc <<< "${_opts[$i]}"
+    if [[ "$i" -eq "$selected" ]]; then
+      printf "${REV} %-*s | %-*s ${NORM}\n" "$lbl_w" "${label:0:$lbl_w}" "$dsc_w" "${desc:0:$dsc_w}"
+    else
+      printf " %-*s | ${DIM}%-*s${NORM}\n" "$lbl_w" "${label:0:$lbl_w}" "$dsc_w" "${desc:0:$dsc_w}"
+    fi
+  done
+  printf "\033[%d;1H${REV}%-${TERM_W}.${TERM_W}s${NORM}" "$TERM_H" " ^X Exit  ^M Select  Up/Down Nav"
+}
+
+menu_loop() {
+  local title="$1"; shift; local options=("$@"); local selected=0; local count="${#options[@]}"
+  printf "\033[?25l"
+  while true; do
+    draw_screen "$title" options "$selected"
+    IFS= read -rsn1 key
+    [[ "$key" == $'\e' ]] && { read -rsn2 -t 0.01 seq; [[ "$seq" == "[A" ]] && key="UP"; [[ "$seq" == "[B" ]] && key="DOWN"; }
+    case "$key" in
+      UP) ((selected--)); [[ $selected -lt 0 ]] && selected=$((count - 1)) ;;
+      DOWN) ((selected++)); [[ $selected -ge $count ]] && selected=0 ;;
+      "") printf "\033[?25h"; return "$selected" ;;
+      q|x|X|$'\030') printf "\033[?25h"; return 255 ;;
+    esac
+  done
+}
+
+input_box() {
+  get_term_size; printf "${CLR}${HOME_CSR}${REV}%-${TERM_W}.${TERM_W}s${NORM}\n\n" "  askall config | Input"
+  printf "  ${BOLD}%s${NORM}\n\n  Current: %s\n\n  > " "$1" "$2"
+  printf "\033[?25h"; local val; read -r val; printf "\033[?25l"
+  echo "${val:-$2}"
+}
+
+menu_model_picker() {
+  local provider="$1"; local key="$2"; local -n _models=$3
+  local cur="${!key}"; local opts=()
+  for m in "${_models[@]}"; do [[ "$m" == "$cur" ]] && opts+=("$m|** ACTIVE **") || opts+=("$m|"); done
+  opts+=("Custom...|Enter ID manually" "Cancel|Back")
+  menu_loop "Select $provider Model" "${opts[@]}"
+  local res=$?
+  if [[ $res -lt ${#_models[@]} ]]; then save_config "$key" "${_models[$res]}"
+  elif [[ $res -eq ${#_models[@]} ]]; then save_config "$key" "$(input_box "Enter $provider ID" "$cur")"; fi
+}
+
+menu_toggle_ai() {
+  while true; do
+    local tools=("Claude" "Gemini" "SGPT" "Codex" "SKWL" "Qwen")
+    local opts=()
+    for t in "${tools[@]}"; do
+      local k="ASKALL_ENABLE_${t^^}"; [[ "$t" == "Qwen" ]] && k="ASKALL_ENABLE_QWEN_CODE"
+      [[ "${!k}" == "true" ]] && opts+=("$t|[ ON ]") || opts+=("$t|[ OFF ]")
+    done
+    opts+=("Back|")
+    menu_loop "Enable/Disable AIs" "${opts[@]}"
+    local res=$?; [[ $res -ge ${#tools[@]} ]] && return
+    local tk="ASKALL_ENABLE_${tools[$res]^^}"; [[ "${tools[$res]}" == "Qwen" ]] && tk="ASKALL_ENABLE_QWEN_CODE"
+    [[ "${!tk}" == "true" ]] && save_config "$tk" "false" || save_config "$tk" "true"
+  done
+}
+
+# ── Main ─────────────────────────────────────────────────
+
+load_config
+while true; do
+  s_cla="[OFF]"; [[ "$ASKALL_ENABLE_CLAUDE" == "true" ]] && s_cla="[ON]"
+  s_gem="[OFF]"; [[ "$ASKALL_ENABLE_GEMINI" == "true" ]] && s_gem="[ON]"
+  s_sgp="[OFF]"; [[ "$ASKALL_ENABLE_SGPT" == "true" ]] && s_sgp="[ON]"
+  s_cdx="[OFF]"; [[ "$ASKALL_ENABLE_CODEX" == "true" ]] && s_cdx="[ON]"
+  s_skw="[OFF]"; [[ "$ASKALL_ENABLE_SKWL" == "true" ]] && s_skw="[ON]"
+  s_qwn="[OFF]"; [[ "$ASKALL_ENABLE_QWEN_CODE" == "true" ]] && s_qwn="[ON]"
+
+  main_opts=(
+    "Toggle AIs|Status: $s_cla $s_gem $s_sgp $s_cdx $s_skw $s_qwn"
+    "Claude $s_cla|Model: $ASKALL_CLAUDE_MODEL"
+    "Gemini $s_gem|Model: $ASKALL_GEMINI_MODEL"
+    "SGPT   $s_sgp|Model: $ASKALL_SGPT_MODEL"
+    "Codex  $s_cdx|Model: $ASKALL_CODEX_MODEL"
+    "SKWL   $s_skw|Model: $ASKALL_SKWL_MODEL"
+    "Qwen   $s_qwn|Model: $ASKALL_QWEN_MODEL"
+    "Output Dir|Path: $ASKALL_DIR"
+    "Exit|Save & Close"
+  )
+  menu_loop "Main Menu" "${main_opts[@]}"
+  case $? in
+    0) menu_toggle_ai ;;
+    1) menu_model_picker "Claude" "ASKALL_CLAUDE_MODEL" CLAUDE_MODELS ;;
+    2) menu_model_picker "Gemini" "ASKALL_GEMINI_MODEL" GEMINI_MODELS ;;
+    3) menu_model_picker "SGPT" "ASKALL_SGPT_MODEL" SGPT_MODELS ;;
+    4) menu_model_picker "Codex" "ASKALL_CODEX_MODEL" CODEX_MODELS ;;
+    5) menu_model_picker "SKWL" "ASKALL_SKWL_MODEL" SKWL_MODELS ;;
+    6) menu_model_picker "Qwen" "ASKALL_QWEN_MODEL" QWEN_MODELS ;;
+    7) ASKALL_DIR=$(input_box "Output Path" "$ASKALL_DIR"); save_config "ASKALL_DIR" "$ASKALL_DIR" ;;
+    *) printf "${CLR}${HOME_CSR}"; exit 0 ;;
+  esac
+done

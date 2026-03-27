@@ -1,0 +1,24 @@
+# >>> ssh-setup managed block >>>
+# Managed by ssh-bootstrap.sh.
+# Private keys stay local on each device.
+
+Host *
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile "~/.ssh/keys/id_ed25519_default"
+  IdentitiesOnly yes
+
+Host arch
+  HostName 192.168.1.93
+  User admin
+  IdentityFile "~/.ssh/keys/id_ed25519_default"
+  IdentitiesOnly yes
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+# <<< ssh-setup managed block <<<

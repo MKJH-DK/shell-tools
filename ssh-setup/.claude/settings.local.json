@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash ssh-bootstrap.sh --dry-run 2>&1)"
+    ]
+  }
+}
