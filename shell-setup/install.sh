@@ -753,7 +753,6 @@ set -s escape-time 0
 set -g focus-events on
 set -g set-clipboard on
 
-# Vim-style pane navigation
 bind h select-pane -L
 bind j select-pane -D
 bind k select-pane -U
@@ -1271,10 +1270,8 @@ main() {
   echo ""
   info "Genveje:"
   info "  Pil Ned (tom prompt) -> filmenu"
-  info "  Ctrl-O               -> omni search"
   info "  Ctrl-R               -> historik (atuin/fzf)"
   info "  m filnavn            -> micro editor"
-  info "  omni                 -> omni search"
   info "  aa 'prompt'          -> askall (alle AI CLIs)"
   echo ""
   info "Værktøjer: starship, tmux, atuin, direnv, trash-cli"

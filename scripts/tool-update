@@ -1,0 +1,9 @@
+#!/usr/bin/env zsh
+source "$(dirname "$0")/lib.sh"
+
+log "Updating shell-tools..."
+if [ -d .git ]; then
+    git pull || warn "Failed to pull updates."
+else
+    warn "Not a git repository, skipping update."
+fi

@@ -1,0 +1,16 @@
+#!/usr/bin/env zsh
+source "$(dirname "$0")/lib.sh"
+
+check_deps() {
+    local deps=("zsh" "starship" "fzf" "zoxide" "eza" "rg" "bat")
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            warn "$dep is not installed."
+        else
+            log "$dep is installed."
+        fi
+    done
+}
+
+log "Running env-check..."
+check_deps
