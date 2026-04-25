@@ -165,18 +165,6 @@ menu_install() {
   done
 }
 
-menu_ai() {
-  if command -v askall-config >/dev/null 2>&1; then
-    clear
-    askall-config
-  else
-    clear
-    echo "askall-config not installed."
-    echo ""
-    echo "Install from: ~/vault/04-repos/01-active/askall/"
-    echo "  cd ~/vault/04-repos/01-active/askall && ./install.sh"
-    echo ""
-    printf "${REV} Press Enter to continue ${NORM}"
     read -r
   fi
 }
@@ -187,20 +175,18 @@ main() {
   while true; do
     local opts=(
       "Installations|Run setup scripts"
-      "AI Configuration|Models & API keys"
       "System Info|View details"
       "Exit|Quit Setup"
     )
     menu_loop "Main Menu" "${opts[@]}"
     case $? in
       0) menu_install ;;
-      1) menu_ai ;;
-      2) 
+      1) 
          clear
          echo "System: $(uname -a)"
          read -r 
          ;;
-      3|255)
+      2|255)
          clear
          exit 0
          ;;
