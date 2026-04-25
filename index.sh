@@ -155,11 +155,11 @@ menu_install() {
     )
     menu_loop "Install Menu" "${opts[@]}"
     case $? in
-      0) run_action "install.sh" ;;
-      1) run_action "setup-shellgpt.sh" ;;
-      2) run_action "setup-micro-minimal.sh" ;;
-      3) run_action "setup-termux-keys-layout.sh" ;;
-      4) run_action "reset-zsh-history.sh" ;;
+      0) run_action "install.sh" ;; # Install.sh is in root
+      1) run_action "scripts/shell-setup/setup-shellgpt.sh" ;;
+      2) run_action "scripts/shell-setup/setup-micro-minimal.sh" ;;
+      3) run_action "scripts/shell-setup/setup-termux-keys-layout.sh" ;;
+      4) run_action "scripts/shell-setup/reset-zsh-history.sh" ;;
       5|255) return ;;
     esac
   done
