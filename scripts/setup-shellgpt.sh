@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # setup-shellgpt.sh - Install and configure ShellGPT with multi-provider support
-# Creates wrapper functions for provider/model switching that also work with askall
+# Creates wrapper functions for provider/model switching
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_BIN="${HOME}/.local/bin"
@@ -75,7 +75,6 @@ After setup, use:
   ask -p anthropic "question"       # Use specific provider
   ask -m gpt-4o-mini "question"     # Use specific model
   ask -p ollama -m llama3 "question"# Combine provider + model
-  askall "question"                 # Multi-AI (respects sgpt provider setting)
 EOF
 }
 
@@ -399,7 +398,7 @@ WRAPEOF
   chmod +x "$SGPT_WRAPPER"
   info "Wrapper written to $SGPT_WRAPPER"
 
-  # Also write the askall-compatible function snippet
+  # Zsh integration snippet
   header "Zsh integration snippet"
   cat <<'SNIPPET'
 # Add to your .zshrc or source from ~/.config/zsh/local.zsh:
@@ -421,40 +420,6 @@ alias ask-or='ask -p openrouter'
 # export ASK_PROVIDER=anthropic
 # export ASK_MODEL=claude-sonnet-4-20250514
 SNIPPET
-}
-
-# ── Update askall for provider awareness ──────────────────
-
-do_update_askall() {
-  header "Updating askall for provider-aware sgpt"
-
-  local askall_path="$LOCAL_BIN/askall"
-  if [[ ! -f "$askall_path" ]]; then
-    warn "askall not found at $askall_path - run install.sh first"
-    return 0
-  fi
-
-  # Patch the sgpt case in askall to use the ask wrapper if available
-  if grep -q 'ask --provider' "$askall_path" 2>/dev/null; then
-    info "askall already patched for provider support"
-    return 0
-  fi
-
-  # Replace the sgpt case block to use the ask wrapper
-  local tmpfile
-  tmpfile="$(mktemp)"
-  sed '/^      sgpt)$/,/^        ;;$/{
-    s|sgpt "$PROMPT"|if [[ -x "$HOME/.local/bin/ask" ]]; then "$HOME/.local/bin/ask" "$PROMPT"; else sgpt "$PROMPT"; fi|
-  }' "$askall_path" > "$tmpfile"
-
-  if [[ -s "$tmpfile" ]]; then
-    mv "$tmpfile" "$askall_path"
-    chmod +x "$askall_path"
-    info "askall patched to use 'ask' wrapper (respects provider/model settings)"
-  else
-    rm -f "$tmpfile"
-    warn "Could not patch askall automatically"
-  fi
 }
 
 # ── Main ──────────────────────────────────────────────────
@@ -486,7 +451,6 @@ main() {
     do_configure
     do_write_profiles
     do_write_wrapper
-    do_update_askall
   else
     $do_install    && do_install
     $do_configure  && do_configure
@@ -500,7 +464,6 @@ main() {
   echo "  ask \"your question\"                  # default provider"
   echo "  ask -p anthropic \"explain monads\"     # specific provider"
   echo "  ask -p ollama -m llama3 \"haiku\"       # provider + model"
-  echo "  askall \"compare answers\"              # all AIs at once"
 }
 
 main "$@"

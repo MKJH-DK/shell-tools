@@ -1,0 +1,29 @@
+# Bee .gitignore — shell-tools specific
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# --- Runtime state ---
+*.pid
+*.lock
+*.sock
+*.log
+logs/
+
+# --- OS & editor ---
+.DS_Store
+*.swp
+*.swo
+
+# --- Temp ---
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# --- Workspace ---
+/_bee-template/

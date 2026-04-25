@@ -1,0 +1,8 @@
+# ai-agents.yaml — bee-specific routing override
+spec_version: 1
+inherits: ../../../../03-common/ai-agents.yaml
+
+# Bee metadata
+bee:
+  name: shell-tools
+  version: 1.0.0

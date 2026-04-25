@@ -790,22 +790,6 @@ set -g message-style "bg=black,fg=white,bold"
 EOF
 }
 
-# ── askall: Multi-AI prompt tool ──────────────────────────
-
-write_askall() {
-  local askall_repo="${ASKALL_REPO:-$HOME/vault/04-repos/01-active/askall}"
-
-  if [[ -d "$askall_repo" ]] && [[ -f "$askall_repo/askall" ]]; then
-    ln -sf "$askall_repo/askall" "$LOCAL_BIN/askall"
-    ln -sf "$askall_repo/askall-config" "$LOCAL_BIN/askall-config"
-    chmod +x "$askall_repo/askall" "$askall_repo/askall-config"
-    log "askall: symlinked from $askall_repo"
-  else
-    warn "askall repo not found at $askall_repo"
-    info "Install: git clone <url> $askall_repo && $askall_repo/install.sh"
-  fi
-}
-
 # ── Zsh configuration ─────────────────────────────────────
 
 write_zsh_config() {
@@ -1096,9 +1080,6 @@ __source_first \
 command -v claude >/dev/null 2>&1 && alias ai='claude'
 command -v sgpt   >/dev/null 2>&1 && alias ask='sgpt'
 
-# askall - send prompt to all AI CLIs
-[[ -x "$HOME/.local/bin/askall" ]] && alias aa='askall'
-
 # ── Omni & Nav dispatchers ────────────────────────────────
 
 __omni_dispatch() {
@@ -1259,7 +1240,6 @@ main() {
   write_micro_config
   write_starship_config
   write_tmux_config
-  write_askall
   write_zsh_config
   set_default_shell
 
@@ -1272,7 +1252,6 @@ main() {
   info "  Pil Ned (tom prompt) -> filmenu"
   info "  Ctrl-R               -> historik (atuin/fzf)"
   info "  m filnavn            -> micro editor"
-  info "  aa 'prompt'          -> askall (alle AI CLIs)"
   echo ""
   info "Værktøjer: starship, tmux, atuin, direnv, trash-cli"
   info "Lokale overrides: $CONFIG_HOME/zsh/local.zsh"

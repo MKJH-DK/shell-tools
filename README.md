@@ -1,49 +1,28 @@
 # shell-tools
 
-Developer environment setup tools. Merged from shell-setup + ssh-setup + askall (2026-03-27).
+Developer environment setup tools. Merged from shell-setup + ssh-setup (2026-03-27).
 
 ## Tools
 
 | Tool | Path | Purpose |
 |------|------|---------|
-| shell-setup | `shell-setup/` | Opinionated zsh environment (Termux, Arch, Debian, Fedora, macOS, WSL, Alpine, Void) |
-| ssh-setup | `ssh-setup/` | Cross-device SSH bootstrap with shared vault config |
-| askall | `scripts/askall` | Send a prompt to multiple AI CLIs in parallel and compare responses |
+| Main Entry | `index.sh` | Interactive TUI for all tools |
+| Scripts | `scripts/` | Installation and utility logic |
 
 ## Install
 
 ```bash
-# Install everything
-./install.sh all
+# Run the interactive TUI
+./index.sh
 
-# Install individual tools
-./install.sh shell
-./install.sh ssh
-./install.sh askall
+# Or run individual scripts directly
+./scripts/install.sh all
+./scripts/setup-shellgpt.sh
 ```
 
-## shell-setup
+## Features
 
-Installs: zsh, starship, atuin, fzf, zoxide, eza, ripgrep, bat, tmux, direnv, plus CLI wrappers.
-
-```bash
-./shell-setup/install.sh
-```
-
-## ssh-setup
-
-Bootstraps SSH config across devices. Shared config lives in the vault; private keys stay local.
-
-```bash
-./ssh-setup/ssh-bootstrap.sh [--dry-run]
-```
-
-## askall
-
-Sends the same prompt to claude, gemini, and sgpt in parallel.
-
-```bash
-./scripts/askall "Your question here"
-# Install to PATH:
-./scripts/askall-install.sh
-```
+- **Shell Setup**: Opinionated Zsh environment with plugins and modern CLI tools.
+- **SSH Setup**: Cross-device SSH bootstrap with shared configuration.
+- **Termux Support**: Custom keyboard layouts and environment checks for Android.
+- **AI Integration**: Wrapper scripts for AI CLI tools like ShellGPT.
