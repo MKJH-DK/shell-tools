@@ -18,7 +18,7 @@
 ## AI & Smart Tools
 - [x] **AI Pipe (`fix`)**: Send last failed command output to AI for troubleshooting.
 - [x] **Context-Aware AI**: Integration of project-specific context into `sgpt` calls.
-- [ ] **AI CLI Installer Hub**: System-aware installers for `codex`, `gemini`, `claude`, `sgpt`, and related AI CLIs.
+- [x] **AI CLI Installer Hub**: System-aware installers for `codex`, `gemini`, `claude`, `sgpt`, and related AI CLIs.
 - [ ] **AI CLI Doctor**: Status checker for installed AI CLIs, versions, PATH visibility, and required env var names without exposing secret values.
 - [ ] **Provider Profiles**: Shared provider/model profiles for ShellGPT and other OpenAI-compatible CLIs.
 - [ ] **AI CLI Shortcuts**: Standard aliases such as `cx`, `gm`, `cl`, `ask`, `ai-status`, and `ai-install`.

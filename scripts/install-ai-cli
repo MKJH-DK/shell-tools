@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+usage() {
+  cat <<'EOF'
+install-ai-cli - system-aware AI CLI installer
+
+Usage:
+  install-ai-cli list
+  install-ai-cli status
+  install-ai-cli install <codex|gemini|claude|sgpt|all>
+
+Installs:
+  codex  -> npm install -g @openai/codex
+  gemini -> npm install -g @google/gemini-cli
+  claude -> npm install -g @anthropic-ai/claude-code
+  sgpt   -> pipx install shell-gpt, falling back to pip --user
+EOF
+}
+
+node_major() {
+  node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0
+}
+
+require_npm() {
+  if ! have npm; then
+    echo "npm is required for this CLI. Install node/npm first." >&2
+    return 1
+  fi
+}
+
+install_npm_pkg() {
+  local binary="$1" package="$2" min_node="${3:-18}"
+  if have "$binary"; then
+    echo "$binary already installed: $("$binary" --version 2>/dev/null || command -v "$binary")"
+    return 0
+  fi
+  require_npm
+  if (( "$(node_major)" < min_node )); then
+    echo "$binary requires Node.js $min_node+. Current: $(node --version 2>/dev/null || echo unknown)" >&2
+    return 1
+  fi
+  npm install -g "$package"
+}
+
+install_codex() {
+  install_npm_pkg codex @openai/codex 18
+}
+
+install_gemini() {
+  install_npm_pkg gemini @google/gemini-cli 20
+}
+
+install_claude() {
+  install_npm_pkg claude @anthropic-ai/claude-code 18
+}
+
+install_sgpt() {
+  if have sgpt; then
+    echo "sgpt already installed: $(sgpt --version 2>/dev/null || command -v sgpt)"
+    return 0
+  fi
+  if have pipx; then
+    pipx install shell-gpt
+  elif have pip3; then
+    pip3 install --user shell-gpt
+  elif have pip; then
+    pip install --user shell-gpt
+  else
+    echo "pipx or pip is required for shell-gpt." >&2
+    return 1
+  fi
+}
+
+status_one() {
+  local binary="$1" label="$2"
+  if have "$binary"; then
+    printf '%-8s installed  %s  %s\n' "$label" "$(command -v "$binary")" "$("$binary" --version 2>/dev/null | head -n 1 || true)"
+  else
+    printf '%-8s missing\n' "$label"
+  fi
+}
+
+status() {
+  status_one codex codex
+  status_one gemini gemini
+  status_one claude claude
+  status_one sgpt sgpt
+  echo
+  have node && echo "node: $(node --version)" || echo "node: missing"
+  have npm && echo "npm: $(npm --version)" || echo "npm: missing"
+  have pipx && echo "pipx: $(pipx --version 2>/dev/null || echo installed)" || echo "pipx: missing"
+}
+
+case "${1:-status}" in
+  list)
+    printf '%s\n' codex gemini claude sgpt
+    ;;
+  status)
+    status
+    ;;
+  install)
+    case "${2:-}" in
+      codex) install_codex ;;
+      gemini) install_gemini ;;
+      claude) install_claude ;;
+      sgpt) install_sgpt ;;
+      all)
+        install_codex
+        install_gemini
+        install_claude
+        install_sgpt
+        ;;
+      *) usage >&2; exit 1 ;;
+    esac
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+esac
