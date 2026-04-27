@@ -1,0 +1,6 @@
+{
+  "name": "shell-tools",
+  "version": "1.0.0",
+  "description": "Context and commands for working on shell-tools.",
+  "contextFileName": "GEMINI.md"
+}
