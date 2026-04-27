@@ -1227,6 +1227,36 @@ top3() {
   __top3_lines "$*"
 }
 
+# fixrun/fix - capture a failing command and ask an AI CLI for help
+fixrun() {
+  if [[ $# -eq 0 ]]; then
+    echo "Usage: fixrun <command>" >&2
+    return 1
+  fi
+
+  local file="${SHELL_TOOLS_LASTFAIL:-${TMPDIR:-/tmp}/shell-tools-lastfail-${USER:-user}.log}"
+  {
+    echo "$ $*"
+    "$@"
+  } > >(tee "$file") 2>&1
+  local status=$?
+  if [[ $status -ne 0 ]]; then
+    echo "Captured failure in $file"
+  fi
+  return "$status"
+}
+
+fix() {
+  if command -v ai-fix >/dev/null 2>&1; then
+    ai-fix "$@"
+  elif [[ -x "$HOME/.local/bin/ai-fix" ]]; then
+    "$HOME/.local/bin/ai-fix" "$@"
+  else
+    echo "ai-fix not installed in PATH" >&2
+    return 1
+  fi
+}
+
 # ── Tool integrations ─────────────────────────────────────
 
 # zoxide

@@ -48,12 +48,13 @@ main_menu() {
     log_header "Main Menu"
     
     local choice
-    choice=$(printf "1. Installations\n2. Config & Maintenance\n3. System Info\n4. Exit" | fzf --height 12% --layout=reverse --border --header="Select an option:")
+    choice=$(printf "1. Installations\n2. Config & Maintenance\n3. AI Tools\n4. System Info\n5. Exit" | fzf --height 14% --layout=reverse --border --header="Select an option:")
 
     case "$choice" in
       "1. Installations") install_menu ;;
       "2. Config & Maintenance") config_menu ;;
-      "3. System Info")
+      "3. AI Tools") ai_menu ;;
+      "4. System Info")
          clear
          header "System Information"
          echo "OS: $(uname -s)"
@@ -83,11 +84,40 @@ main_menu() {
          printf "${REV} Press Enter to continue ${NORM}"
          read -r 
          ;;
-      "4. Exit"|*)
+      "5. Exit"|*)
          clear
          exit 0
          ;;
     esac
+  done
+}
+
+ai_menu() {
+  while true; do
+    log_header "AI Tools"
+
+    local options=(
+      "AI Fix Last Failure|scripts/ai-fix"
+      "ShellGPT Setup|scripts/setup-shellgpt.sh"
+      "Back|back"
+    )
+
+    local fzf_input=""
+    for opt in "${options[@]}"; do
+      fzf_input+="${opt%%|*}\n"
+    done
+
+    local selected
+    selected=$(printf "$fzf_input" | fzf --height 14% --layout=reverse --border --header="Select AI tool:")
+
+    [[ -z "$selected" || "$selected" == "Back" ]] && return
+
+    for opt in "${options[@]}"; do
+      if [[ "${opt%%|*}" == "$selected" ]]; then
+        run_action "$selected" "${opt#*|}"
+        break
+      fi
+    done
   done
 }
 

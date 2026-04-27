@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+LAST_FAIL_FILE="${SHELL_TOOLS_LASTFAIL:-${TMPDIR:-/tmp}/shell-tools-lastfail-${USER:-user}.log}"
+
+usage() {
+  cat <<'EOF'
+ai-fix - send failed command output to an AI CLI
+
+Usage:
+  ai-fix                 Use last captured failure
+  command 2>&1 | ai-fix  Use piped input
+
+Zsh helpers installed by install.sh:
+  fixrun <command>       Run command and capture failing output
+  fix                    Ask AI about the last captured failure
+EOF
+}
+
+pick_ai() {
+  if command -v ask >/dev/null 2>&1; then echo "ask"; return 0; fi
+  if command -v sgpt >/dev/null 2>&1; then echo "sgpt"; return 0; fi
+  if command -v claude >/dev/null 2>&1; then echo "claude"; return 0; fi
+  if command -v gemini >/dev/null 2>&1; then echo "gemini"; return 0; fi
+  if command -v codex >/dev/null 2>&1; then echo "codex"; return 0; fi
+  return 1
+}
+
+input=""
+if [[ ! -t 0 ]]; then
+  input="$(cat)"
+elif [[ -f "$LAST_FAIL_FILE" ]]; then
+  input="$(cat "$LAST_FAIL_FILE")"
+fi
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ -z "$input" ]]; then
+  echo "No failure output found. Run: fixrun <command>" >&2
+  exit 1
+fi
+
+ai="$(pick_ai)" || {
+  echo "No supported AI CLI found: ask, sgpt, claude, gemini, codex" >&2
+  exit 1
+}
+
+prompt="Troubleshoot this failed shell command output. Give concise cause and next command suggestions:
+
+$input"
+
+case "$ai" in
+  ask|sgpt) "$ai" "$prompt" ;;
+  claude|gemini|codex) "$ai" "$prompt" ;;
+esac
