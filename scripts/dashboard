@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+header() {
+  printf '\n== %s ==\n' "$*"
+}
+
+header "System"
+printf 'Host: %s\n' "$(hostname 2>/dev/null || echo unknown)"
+printf 'OS: %s %s\n' "$(uname -s)" "$(uname -m)"
+printf 'Shell: %s\n' "${SHELL:-unknown}"
+
+header "Battery"
+if command -v termux-battery-status >/dev/null 2>&1; then
+  timeout 2 termux-battery-status 2>/dev/null |
+    sed -n 's/[{},"]//g; s/^ *//; /percentage\|status\|temperature/p'
+else
+  echo "termux-battery-status unavailable"
+fi
+
+header "Disk"
+df -h "$HOME" 2>/dev/null | awk 'NR==1 || NR==2 {print}'
+[[ -d "$HOME/storage/shared" ]] && df -h "$HOME/storage/shared" 2>/dev/null | awk 'NR==2 {print}'
+
+header "Repo"
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git status --short
+  git rev-parse --abbrev-ref HEAD 2>/dev/null | sed 's/^/Branch: /'
+else
+  echo "Not inside a git repo"
+fi
+
+header "Updates"
+if command -v pkg >/dev/null 2>&1; then
+  echo "Termux: run 'pkg update && pkg upgrade' when ready"
+elif command -v pacman >/dev/null 2>&1; then
+  echo "Arch: run 'sudo pacman -Syu' when ready"
+elif command -v apt-get >/dev/null 2>&1; then
+  echo "Debian/Ubuntu: run 'sudo apt-get update && sudo apt-get upgrade'"
+else
+  echo "No known package manager detected"
+fi

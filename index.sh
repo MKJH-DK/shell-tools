@@ -137,6 +137,7 @@ config_menu() {
       "SSH Setup|scripts/ssh-setup"
       "Config Sync|scripts/config-sync"
       "Mirror Helper|scripts/mirror-helper"
+      "Dashboard|scripts/dashboard"
       "Reset History|scripts/reset-zsh-history.sh"
       "Back|back"
     )
