@@ -983,6 +983,76 @@ alias zshrc='$EDITOR ~/.config/zsh/interactive-void.zsh'
 alias zshlocal='$EDITOR ~/.config/zsh/local.zsh'
 alias reload='exec zsh -l'
 
+# ── Local env management ──────────────────────────────────
+__local_zsh_file() {
+  echo "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/local.zsh"
+}
+
+setenv() {
+  if [[ $# -lt 2 ]]; then
+    echo "Usage: setenv NAME VALUE" >&2
+    return 1
+  fi
+
+  local name="$1"
+  shift
+  local value="$*"
+  local file="$(__local_zsh_file)"
+
+  if [[ ! "$name" =~ '^[A-Za-z_][A-Za-z0-9_]*$' ]]; then
+    echo "Invalid env name: $name" >&2
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  local escaped
+  escaped="${value//\\/\\\\}"
+  escaped="${escaped//\"/\\\"}"
+
+  if grep -qE "^[[:space:]]*export[[:space:]]+$name=" "$file"; then
+    local tmp
+    tmp="$(mktemp)"
+    awk -v name="$name" -v value="$escaped" '
+      $0 ~ "^[[:space:]]*export[[:space:]]+" name "=" {
+        print "export " name "=\"" value "\""
+        next
+      }
+      { print }
+    ' "$file" > "$tmp" && mv "$tmp" "$file"
+  else
+    printf 'export %s="%s"\n' "$name" "$escaped" >> "$file"
+  fi
+
+  export "$name=$value"
+  echo "Set $name in $file"
+}
+
+unsetenv() {
+  if [[ $# -ne 1 ]]; then
+    echo "Usage: unsetenv NAME" >&2
+    return 1
+  fi
+
+  local name="$1"
+  local file="$(__local_zsh_file)"
+  [[ -f "$file" ]] || return 0
+
+  local tmp
+  tmp="$(mktemp)"
+  grep -Ev "^[[:space:]]*export[[:space:]]+$name=" "$file" > "$tmp" || true
+  mv "$tmp" "$file"
+  unset "$name"
+  echo "Removed $name from $file"
+}
+
+lsenv() {
+  local file="$(__local_zsh_file)"
+  [[ -f "$file" ]] || return 0
+  sed -n 's/^[[:space:]]*export[[:space:]]\+\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$file"
+}
+
 # ── Useful functions ──────────────────────────────────────
 # mkcd - create dir and cd into it
 mkcd() { mkdir -p "$1" && cd "$1"; }
