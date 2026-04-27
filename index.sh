@@ -100,6 +100,7 @@ config_menu() {
       "Environment Check|scripts/env-check"
       "Update shell-tools|scripts/tool-update"
       "SSH Setup|scripts/ssh-setup"
+      "Config Sync|scripts/config-sync"
       "Reset History|scripts/reset-zsh-history.sh"
       "Back|back"
     )

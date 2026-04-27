@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+DEFAULT_DEST="${SHELL_TOOLS_SYNC_DIR:-$HOME/storage/shared/shell-tools-config}"
+[[ -d "/storage/shared" ]] && DEFAULT_DEST="${SHELL_TOOLS_SYNC_DIR:-/storage/shared/shell-tools-config}"
+
+usage() {
+  cat <<'EOF'
+config-sync - encrypted backup/restore for local shell config
+
+Usage:
+  config-sync backup [dest-dir]
+  config-sync restore ARCHIVE
+  config-sync list [dest-dir]
+
+Backs up selected local files only:
+  ~/.config/zsh/local.zsh
+  ~/.ssh/config
+  ~/.termux/termux.properties
+  ~/.config/shell_gpt/profiles
+EOF
+}
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+encrypt_file() {
+  local src="$1" dst="$2"
+  if have gpg; then
+    gpg --symmetric --cipher-algo AES256 --output "$dst" "$src"
+  elif have openssl; then
+    openssl enc -aes-256-cbc -salt -pbkdf2 -in "$src" -out "$dst"
+  else
+    echo "Need gpg or openssl for encrypted config sync." >&2
+    return 1
+  fi
+}
+
+decrypt_file() {
+  local src="$1" dst="$2"
+  case "$src" in
+    *.gpg) gpg --decrypt --output "$dst" "$src" ;;
+    *.enc) openssl enc -d -aes-256-cbc -pbkdf2 -in "$src" -out "$dst" ;;
+    *) echo "Unknown encrypted archive type: $src" >&2; return 1 ;;
+  esac
+}
+
+backup() {
+  local dest="${1:-$DEFAULT_DEST}"
+  mkdir -p "$dest"
+
+  local tmp archive encrypted ext
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+
+  mkdir -p "$tmp/config/zsh" "$tmp/ssh" "$tmp/termux" "$tmp/config/shell_gpt"
+
+  [[ -f "$CONFIG_HOME/zsh/local.zsh" ]] && cp -a "$CONFIG_HOME/zsh/local.zsh" "$tmp/config/zsh/local.zsh"
+  [[ -f "$HOME/.ssh/config" ]] && cp -a "$HOME/.ssh/config" "$tmp/ssh/config"
+  [[ -f "$HOME/.termux/termux.properties" ]] && cp -a "$HOME/.termux/termux.properties" "$tmp/termux/termux.properties"
+  [[ -d "$CONFIG_HOME/shell_gpt/profiles" ]] && cp -a "$CONFIG_HOME/shell_gpt/profiles" "$tmp/config/shell_gpt/profiles"
+
+  archive="$tmp/shell-tools-config-$(date +%Y%m%d-%H%M%S).tar.gz"
+  tar -C "$tmp" -czf "$archive" config ssh termux
+
+  if have gpg; then
+    ext="gpg"
+  else
+    ext="enc"
+  fi
+  encrypted="$dest/$(basename "$archive").$ext"
+  encrypt_file "$archive" "$encrypted"
+  chmod 600 "$encrypted"
+  echo "Backup written: $encrypted"
+}
+
+restore() {
+  local encrypted="${1:-}"
+  if [[ -z "$encrypted" || ! -f "$encrypted" ]]; then
+    echo "Usage: config-sync restore ARCHIVE" >&2
+    return 1
+  fi
+
+  local tmp archive
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  archive="$tmp/config.tar.gz"
+  decrypt_file "$encrypted" "$archive"
+
+  tar -C "$tmp" -xzf "$archive"
+  mkdir -p "$CONFIG_HOME/zsh" "$HOME/.ssh" "$HOME/.termux" "$CONFIG_HOME/shell_gpt"
+
+  [[ -f "$tmp/config/zsh/local.zsh" ]] && cp -a "$tmp/config/zsh/local.zsh" "$CONFIG_HOME/zsh/local.zsh"
+  [[ -f "$tmp/ssh/config" ]] && cp -a "$tmp/ssh/config" "$HOME/.ssh/config"
+  [[ -f "$tmp/termux/termux.properties" ]] && cp -a "$tmp/termux/termux.properties" "$HOME/.termux/termux.properties"
+  [[ -d "$tmp/config/shell_gpt/profiles" ]] && cp -a "$tmp/config/shell_gpt/profiles" "$CONFIG_HOME/shell_gpt/profiles"
+
+  chmod 700 "$HOME/.ssh" 2>/dev/null || true
+  chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
+  echo "Config restored from: $encrypted"
+}
+
+list_backups() {
+  local dest="${1:-$DEFAULT_DEST}"
+  find "$dest" -maxdepth 1 -type f \( -name '*.tar.gz.gpg' -o -name '*.tar.gz.enc' \) -print 2>/dev/null | sort -r
+}
+
+case "${1:-}" in
+  backup) shift; backup "$@" ;;
+  restore) shift; restore "$@" ;;
+  list) shift; list_backups "$@" ;;
+  -h|--help|help|"") usage ;;
+  *) usage >&2; exit 1 ;;
+esac

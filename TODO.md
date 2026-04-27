@@ -5,7 +5,7 @@
 - [x] **SSH Automation**: Script for key generation (ED25519) and `~/.ssh/config` templating.
 - [x] **Modular Zsh**: Refactor `interactive-void.zsh` into `~/.config/zsh/conf.d/*.zsh`.
 - [x] **Quick-Edit Menu**: TUI shortcuts for `sudoers`, `ssh config`, `zshrc` and `local.zsh`.
-- [ ] **Local Config Sync**: Encrypted backup/restore of personal config layer to `/storage/shared`.
+- [x] **Local Config Sync**: Encrypted backup/restore of personal config layer to `/storage/shared`.
 - [ ] **Package Mirror Helper**: Tool to switch to fastest mirrors (Termux/Arch focus).
 
 ## Shell Enhancements
