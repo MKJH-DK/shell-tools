@@ -198,7 +198,7 @@ install_zsh_plugins_fallback() {
   mkdir -p "$base"
 
   # Check common system paths
-  local found_auto=false found_syntax=false
+  local found_auto=false found_syntax=false found_fzf_tab=false
   for p in \
     "${PREFIX:-/usr}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" \
     "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" \
@@ -215,6 +215,14 @@ install_zsh_plugins_fallback() {
     [[ -r "$p" ]] && found_syntax=true && break
   done
 
+  for p in \
+    "${PREFIX:-/usr}/share/fzf-tab/fzf-tab.plugin.zsh" \
+    "/usr/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh" \
+    "/opt/homebrew/share/fzf-tab/fzf-tab.plugin.zsh" \
+    "/usr/local/share/fzf-tab/fzf-tab.plugin.zsh"; do
+    [[ -r "$p" ]] && found_fzf_tab=true && break
+  done
+
   if ! $found_auto && [[ ! -d "$base/zsh-autosuggestions" ]]; then
     info "Henter zsh-autosuggestions via git"
     git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$base/zsh-autosuggestions"
@@ -223,6 +231,11 @@ install_zsh_plugins_fallback() {
   if ! $found_syntax && [[ ! -d "$base/zsh-syntax-highlighting" ]]; then
     info "Henter zsh-syntax-highlighting via git"
     git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "$base/zsh-syntax-highlighting"
+  fi
+
+  if ! $found_fzf_tab && [[ ! -d "$base/fzf-tab" ]]; then
+    info "Henter fzf-tab via git"
+    git clone --depth=1 https://github.com/Aloxaf/fzf-tab "$base/fzf-tab"
   fi
 }
 
@@ -974,6 +987,50 @@ alias reload='exec zsh -l'
 # mkcd - create dir and cd into it
 mkcd() { mkdir -p "$1" && cd "$1"; }
 
+# pj - jump to a git project with fzf
+pj() {
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "pj requires fzf" >&2
+    return 1
+  fi
+
+  local fd_bin roots selected
+  roots=("$HOME")
+  [[ -n "${VAULT_ROOT:-}" && -d "$VAULT_ROOT" ]] && roots+=("$VAULT_ROOT")
+  [[ -d "$HOME/storage/shared" ]] && roots+=("$HOME/storage/shared")
+  [[ -d "$HOME/win" ]] && roots+=("$HOME/win")
+
+  if command -v fd >/dev/null 2>&1; then
+    fd_bin="fd"
+  elif command -v fdfind >/dev/null 2>&1; then
+    fd_bin="fdfind"
+  else
+    fd_bin=""
+  fi
+
+  if [[ -n "$fd_bin" ]]; then
+    selected="$(
+      "$fd_bin" .git "${roots[@]}" -H -t d \
+        -E node_modules -E .cache -E .local -E .npm -E .cargo \
+        2>/dev/null |
+      sed 's#/.git$##' |
+      sort -u |
+      fzf --prompt='project> ' --height=80% --layout=reverse --border
+    )" || return 0
+  else
+    selected="$(
+      find "${roots[@]}" \
+        \( -path '*/node_modules' -o -path '*/.cache' -o -path '*/.local' -o -path '*/.npm' -o -path '*/.cargo' \) -prune \
+        -o -type d -name .git -print 2>/dev/null |
+      sed 's#/.git$##' |
+      sort -u |
+      fzf --prompt='project> ' --height=80% --layout=reverse --border
+    )" || return 0
+  fi
+
+  [[ -n "$selected" ]] && cd "$selected"
+}
+
 # extract - universal archive extractor
 extract() {
   if [[ ! -f "$1" ]]; then echo "'$1' not found"; return 1; fi
@@ -1039,6 +1096,19 @@ __source_first \
   "/usr/share/doc/fzf/examples/key-bindings.zsh" \
   "/opt/homebrew/opt/fzf/shell/key-bindings.zsh" \
   "/usr/share/fzf/shell/key-bindings.zsh"
+
+# fzf-tab visual completion
+zstyle ':fzf-tab:*' fzf-command fzf
+zstyle ':fzf-tab:*' fzf-flags --height=80% --layout=reverse --border
+zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls -la --color=always $realpath 2>/dev/null'
+__source_first \
+  "${PREFIX:-/usr}/share/fzf-tab/fzf-tab.plugin.zsh" \
+  "/data/data/com.termux/files/usr/share/fzf-tab/fzf-tab.plugin.zsh" \
+  "/usr/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh" \
+  "/usr/share/fzf-tab/fzf-tab.plugin.zsh" \
+  "/opt/homebrew/share/fzf-tab/fzf-tab.plugin.zsh" \
+  "/usr/local/share/fzf-tab/fzf-tab.plugin.zsh" \
+  "$HOME/.local/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh"
 
 # Autosuggestions
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=250'
