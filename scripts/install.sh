@@ -3,6 +3,8 @@
 # Supports: Termux, Arch, Debian/Ubuntu, Fedora/RHEL, macOS, WSL, Alpine, Void Linux
 set -Eeuo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # ── XDG paths ─────────────────────────────────────────────
 LOCAL_BIN="$HOME/.local/bin"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -601,6 +603,24 @@ printf '%s\t%s\n' "$kind" "$payload"
 OMNIEOF
 
   chmod +x "$LOCAL_BIN/omni-select"
+}
+
+install_shell_tools_bins() {
+  local tool
+  for tool in \
+    ai-cli-doctor \
+    ai-fix \
+    config-sync \
+    context-ask \
+    install-ai-cli \
+    mirror-helper \
+    provider-profiles \
+    quick-edit \
+    ssh-setup; do
+    if [[ -f "$SCRIPT_DIR/$tool" ]]; then
+      install -m 755 "$SCRIPT_DIR/$tool" "$LOCAL_BIN/$tool"
+    fi
+  done
 }
 
 # ── Micro editor config ───────────────────────────────────
@@ -1346,6 +1366,11 @@ __source_first \
 command -v claude >/dev/null 2>&1 && alias ai='claude'
 command -v sgpt   >/dev/null 2>&1 && alias ask='sgpt'
 command -v context-ask >/dev/null 2>&1 && alias cask='context-ask'
+command -v codex  >/dev/null 2>&1 && alias cx='codex'
+command -v gemini >/dev/null 2>&1 && alias gm='gemini'
+command -v claude >/dev/null 2>&1 && alias cl='claude'
+command -v ai-cli-doctor >/dev/null 2>&1 && alias ai-status='ai-cli-doctor'
+command -v install-ai-cli >/dev/null 2>&1 && alias ai-install='install-ai-cli'
 
 # ── Omni & Nav dispatchers ────────────────────────────────
 
@@ -1541,6 +1566,7 @@ main() {
   # Write configs
   write_navmenu
   write_omni
+  install_shell_tools_bins
   write_micro_config
   write_starship_config
   write_tmux_config
