@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+usage() {
+  cat <<'EOF'
+arch-infra-helper - Arch/Termux infrastructure helpers
+
+Usage:
+  arch-infra-helper status
+  arch-infra-helper orphans
+  arch-infra-helper failed
+  arch-infra-helper update-plan
+EOF
+}
+
+status() {
+  echo "System: $(uname -a)"
+  have pacman && echo "pacman: $(pacman --version | head -n 1)" || echo "pacman: missing"
+  have yay && echo "yay: $(yay --version | head -n 1)" || true
+  have paru && echo "paru: $(paru --version | head -n 1)" || true
+  [[ -n "${TERMUX_VERSION:-}" ]] && echo "Termux: $TERMUX_VERSION"
+  [[ -d /data/data/com.termux/files/home ]] && echo "Termux home detected"
+  df -h "$HOME" 2>/dev/null | awk 'NR==1 || NR==2 {print}'
+}
+
+orphans() {
+  if have pacman; then
+    pacman -Qtdq 2>/dev/null || true
+  else
+    echo "pacman not found" >&2
+    return 1
+  fi
+}
+
+failed() {
+  if have systemctl; then
+    systemctl --failed
+  else
+    echo "systemctl not found"
+  fi
+}
+
+update_plan() {
+  if have pacman; then
+    echo "1. Refresh mirrors: mirror-helper suggest"
+    echo "2. Upgrade: sudo pacman -Syu"
+    echo "3. Review orphans: arch-infra-helper orphans"
+    echo "4. Check failed services: arch-infra-helper failed"
+  elif have pkg; then
+    echo "1. Update Termux: pkg update && pkg upgrade"
+    echo "2. Check storage: termux-setup-storage"
+    echo "3. Check dashboard: dashboard"
+  else
+    echo "No Arch/Termux package manager detected"
+  fi
+}
+
+case "${1:-status}" in
+  status) status ;;
+  orphans) orphans ;;
+  failed) failed ;;
+  update-plan) update_plan ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac

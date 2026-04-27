@@ -611,6 +611,7 @@ install_shell_tools_bins() {
     ai-cli-doctor \
     ai-skills \
     ai-fix \
+    arch-infra-helper \
     config-sync \
     context-ask \
     dashboard \
