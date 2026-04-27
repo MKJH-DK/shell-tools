@@ -32,5 +32,5 @@
 - [x] **Arch Infra Helpers**: Specialized scripts for Arch Linux ARM/Termux environments.
 
 ## Maintenance
-- [ ] **Fast Install Path**: Streamlined one-liner for fresh environments.
+- [x] **Fast Install Path**: Streamlined one-liner for fresh environments.
 - [ ] **Infrastructure Repo Helpers**: Shortcuts and automation for repo management.

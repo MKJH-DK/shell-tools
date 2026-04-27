@@ -615,6 +615,7 @@ install_shell_tools_bins() {
     config-sync \
     context-ask \
     dashboard \
+    fast-install \
     install-ai-cli \
     mirror-helper \
     provider-profiles \

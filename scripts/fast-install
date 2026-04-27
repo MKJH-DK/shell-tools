@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+usage() {
+  cat <<EOF
+fast-install - streamlined shell-tools setup
+
+Usage:
+  scripts/fast-install
+  scripts/fast-install --print
+
+Local one-liner:
+  cd "$ROOT_DIR" && bash scripts/fast-install
+EOF
+}
+
+if [[ "${1:-}" == "--print" ]]; then
+  usage
+  exit 0
+fi
+
+echo "shell-tools fast install"
+echo "Repo: $ROOT_DIR"
+echo
+
+if [[ ! -f "$ROOT_DIR/scripts/install.sh" ]]; then
+  echo "Missing scripts/install.sh" >&2
+  exit 1
+fi
+
+bash "$ROOT_DIR/scripts/install.sh"
+
+echo
+echo "Done. Restart shell or run: exec zsh -l"

@@ -169,6 +169,7 @@ install_menu() {
     
     local options=(
       "Full Setup|scripts/install.sh"
+      "Fast Install|scripts/fast-install"
       "ShellGPT Setup|scripts/setup-shellgpt.sh"
       "Micro Editor|scripts/setup-micro-minimal.sh"
       "Termux Keys|scripts/setup-termux-keys-layout.sh"
