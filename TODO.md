@@ -20,7 +20,7 @@
 - [x] **Context-Aware AI**: Integration of project-specific context into `sgpt` calls.
 - [x] **AI CLI Installer Hub**: System-aware installers for `codex`, `gemini`, `claude`, `sgpt`, and related AI CLIs.
 - [x] **AI CLI Doctor**: Status checker for installed AI CLIs, versions, PATH visibility, and required env var names without exposing secret values.
-- [ ] **Provider Profiles**: Shared provider/model profiles for ShellGPT and other OpenAI-compatible CLIs.
+- [x] **Provider Profiles**: Shared provider/model profiles for ShellGPT and other OpenAI-compatible CLIs.
 - [ ] **AI CLI Shortcuts**: Standard aliases such as `cx`, `gm`, `cl`, `ask`, `ai-status`, and `ai-install`.
 - [ ] **Cross-CLI Skills Sync**: Manage reusable skills/templates for Codex (`SKILL.md`), Claude (`SKILL.md`), and Gemini CLI extensions (`gemini-extension.json`/`GEMINI.md`).
 - [ ] **AI Skills Installer**: Add `ai-skills install <codex|claude|gemini> <skill>` and `ai-skills sync` for installing shared project skills into each CLI's expected location.

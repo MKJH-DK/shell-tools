@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+AI_DIR="$CONFIG_HOME/ai-cli"
+SGPT_DIR="$CONFIG_HOME/shell_gpt/profiles"
+
+usage() {
+  cat <<'EOF'
+provider-profiles - write shared AI provider profiles
+
+Usage:
+  provider-profiles write
+  provider-profiles list
+
+Writes metadata only. API key values are never stored here.
+EOF
+}
+
+providers_tsv() {
+  cat <<'EOF'
+openai	https://api.openai.com/v1	gpt-4.1	OPENAI_API_KEY
+anthropic	https://api.anthropic.com/v1	claude-sonnet-4-20250514	ANTHROPIC_API_KEY
+openrouter	https://openrouter.ai/api/v1	openai/gpt-4.1	OPENROUTER_API_KEY
+groq	https://api.groq.com/openai/v1	llama-3.3-70b-versatile	GROQ_API_KEY
+gemini	https://generativelanguage.googleapis.com/v1beta/models	gemini-2.5-pro	GOOGLE_API_KEY
+ollama	http://localhost:11434/v1	qwen2.5-coder:7b	
+local	http://localhost:1234/v1	default	
+EOF
+}
+
+write_profiles() {
+  mkdir -p "$AI_DIR" "$SGPT_DIR"
+  providers_tsv > "$AI_DIR/providers.tsv"
+
+  while IFS=$'\t' read -r name url model keyvar; do
+    [[ -n "$name" ]] || continue
+    cat > "$SGPT_DIR/$name.conf" <<EOF
+# Profile: $name
+OPENAI_API_HOST=$url
+DEFAULT_MODEL=$model
+API_KEY_VAR=${keyvar:-none}
+EOF
+  done < "$AI_DIR/providers.tsv"
+
+  cat > "$AI_DIR/README.md" <<'EOF'
+# AI CLI provider profiles
+
+`providers.tsv` contains provider metadata only:
+
+`name<TAB>base_url<TAB>default_model<TAB>api_key_env_name`
+
+Do not store API key values in this directory.
+EOF
+
+  echo "Wrote $AI_DIR/providers.tsv"
+  echo "Wrote ShellGPT profiles to $SGPT_DIR"
+}
+
+list_profiles() {
+  if [[ -f "$AI_DIR/providers.tsv" ]]; then
+    column -t -s $'\t' "$AI_DIR/providers.tsv" 2>/dev/null || cat "$AI_DIR/providers.tsv"
+  else
+    providers_tsv
+  fi
+}
+
+case "${1:-list}" in
+  write) write_profiles ;;
+  list) list_profiles ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac
