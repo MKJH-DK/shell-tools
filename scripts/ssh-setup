@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SSH_DIR="${HOME}/.ssh"
+DEFAULT_KEY="${SSH_DIR}/id_ed25519"
+CONFIG_FILE="${SSH_DIR}/config"
+
+usage() {
+  cat <<'EOF'
+ssh-setup - ED25519 key and ssh config helper
+
+Usage:
+  ssh-setup                 Interactive setup
+  ssh-setup key [path]      Create ED25519 key if missing
+  ssh-setup host NAME HOST USER [KEY]
+  ssh-setup show-pub [path] Print public key
+EOF
+}
+
+ensure_ssh_dir() {
+  mkdir -p "$SSH_DIR"
+  chmod 700 "$SSH_DIR"
+  touch "$CONFIG_FILE"
+  chmod 600 "$CONFIG_FILE"
+}
+
+make_key() {
+  local key_path="${1:-$DEFAULT_KEY}"
+  ensure_ssh_dir
+
+  if [[ -f "$key_path" ]]; then
+    echo "Key already exists: $key_path"
+    return 0
+  fi
+
+  local comment
+  comment="${USER:-user}@$(hostname 2>/dev/null || echo shell-tools)"
+  ssh-keygen -t ed25519 -a 100 -C "$comment" -f "$key_path"
+  chmod 600 "$key_path"
+  [[ -f "$key_path.pub" ]] && chmod 644 "$key_path.pub"
+}
+
+add_host() {
+  local name="${1:-}" host="${2:-}" user="${3:-}" key_path="${4:-$DEFAULT_KEY}"
+  if [[ -z "$name" || -z "$host" || -z "$user" ]]; then
+    echo "Usage: ssh-setup host NAME HOST USER [KEY]" >&2
+    return 1
+  fi
+
+  ensure_ssh_dir
+  if grep -qE "^[[:space:]]*Host[[:space:]]+$name([[:space:]]|$)" "$CONFIG_FILE"; then
+    echo "Host entry already exists: $name"
+    return 0
+  fi
+
+  cat >> "$CONFIG_FILE" <<EOF
+
+Host $name
+  HostName $host
+  User $user
+  IdentityFile $key_path
+  IdentitiesOnly yes
+  AddKeysToAgent yes
+EOF
+  chmod 600 "$CONFIG_FILE"
+  echo "Added Host $name to $CONFIG_FILE"
+}
+
+show_pub() {
+  local key_path="${1:-$DEFAULT_KEY}"
+  if [[ ! -f "$key_path.pub" ]]; then
+    echo "Missing public key: $key_path.pub" >&2
+    return 1
+  fi
+  cat "$key_path.pub"
+}
+
+interactive() {
+  ensure_ssh_dir
+  echo "SSH setup"
+  echo "Default key: $DEFAULT_KEY"
+  echo
+  read -r -p "Create default ED25519 key if missing? [Y/n] " answer
+  case "${answer:-Y}" in
+    y|Y|yes|YES) make_key "$DEFAULT_KEY" ;;
+  esac
+
+  echo
+  read -r -p "Add a Host entry to ~/.ssh/config? [y/N] " answer
+  case "${answer:-N}" in
+    y|Y|yes|YES)
+      read -r -p "Host alias: " name
+      read -r -p "Hostname/IP: " host
+      read -r -p "User: " user
+      read -r -p "IdentityFile [$DEFAULT_KEY]: " key_path
+      add_host "$name" "$host" "$user" "${key_path:-$DEFAULT_KEY}"
+      ;;
+  esac
+
+  echo
+  echo "Public key:"
+  show_pub "$DEFAULT_KEY" 2>/dev/null || true
+}
+
+case "${1:-}" in
+  ""|interactive) interactive ;;
+  key) shift; make_key "$@" ;;
+  host) shift; add_host "$@" ;;
+  show-pub) shift; show_pub "$@" ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac

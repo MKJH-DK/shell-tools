@@ -2,7 +2,7 @@
 
 ## Core Infrastructure & Environment
 - [x] **Dynamic Env Management**: Implement `setenv` function to manage variables in `~/.config/zsh/local.zsh`.
-- [ ] **SSH Automation**: Script for key generation (ED25519) and `~/.ssh/config` templating.
+- [x] **SSH Automation**: Script for key generation (ED25519) and `~/.ssh/config` templating.
 - [ ] **Modular Zsh**: Refactor `interactive-void.zsh` into `~/.config/zsh/conf.d/*.zsh`.
 - [ ] **Quick-Edit Menu**: TUI shortcuts for `sudoers`, `ssh config`, `zshrc` and `local.zsh`.
 - [ ] **Local Config Sync**: Encrypted backup/restore of personal config layer to `/storage/shared`.
