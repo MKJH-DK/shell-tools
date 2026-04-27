@@ -243,7 +243,7 @@ install_zsh_plugins_fallback() {
 
 ensure_dirs() {
   mkdir -p "$LOCAL_BIN" "$CONFIG_HOME" "$CACHE_HOME" "$DATA_HOME"
-  mkdir -p "$CONFIG_HOME/zsh" "$CONFIG_HOME/micro/colorschemes" "$CONFIG_HOME/omni"
+  mkdir -p "$CONFIG_HOME/zsh/conf.d" "$CONFIG_HOME/micro/colorschemes" "$CONFIG_HOME/omni"
   mkdir -p "$CACHE_HOME/zsh" "$DATA_HOME/zsh/plugins"
 }
 
@@ -806,8 +806,8 @@ EOF
 # ── Zsh configuration ─────────────────────────────────────
 
 write_zsh_config() {
-  cat > "$CONFIG_HOME/zsh/interactive-void.zsh" <<'ZSHEOF'
-# Managed by install.sh
+  cat > "$CONFIG_HOME/zsh/conf.d/00-base.zsh" <<'ZSHEOF'
+# Managed by install.sh - base module loaded by interactive-void.zsh
 
 # ── Environment ───────────────────────────────────────────
 export EDITOR="${EDITOR:-micro}"
@@ -1415,9 +1415,31 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   alias finder='open .'
 fi
 
-# Source local overrides if present
-[[ -r "$HOME/.config/zsh/local.zsh" ]] && source "$HOME/.config/zsh/local.zsh"
 ZSHEOF
+
+  cat > "$CONFIG_HOME/zsh/interactive-void.zsh" <<'EOF'
+# Managed by install.sh - interactive zsh loader
+
+ZSH_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
+
+for zsh_module in "$ZSH_CONFIG_DIR"/conf.d/*.zsh(N); do
+  source "$zsh_module"
+done
+
+unset zsh_module
+
+[[ -r "$ZSH_CONFIG_DIR/local.zsh" ]] && source "$ZSH_CONFIG_DIR/local.zsh"
+EOF
+
+  cat > "$CONFIG_HOME/zsh/conf.d/README.md" <<'EOF'
+# zsh conf.d
+
+Files ending in `.zsh` are sourced by `../interactive-void.zsh` in lexical order.
+
+- `00-base.zsh` is managed by `shell-tools`.
+- Put machine-local overrides in `../local.zsh`.
+- Put optional modules in this directory with a numbered prefix.
+EOF
 
   cat > "$HOME/.zshrc" <<'EOF'
 [[ -r "$HOME/.config/zsh/interactive-void.zsh" ]] && source "$HOME/.config/zsh/interactive-void.zsh"
