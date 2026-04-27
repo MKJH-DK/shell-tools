@@ -33,4 +33,4 @@
 
 ## Maintenance
 - [x] **Fast Install Path**: Streamlined one-liner for fresh environments.
-- [ ] **Infrastructure Repo Helpers**: Shortcuts and automation for repo management.
+- [x] **Infrastructure Repo Helpers**: Shortcuts and automation for repo management.

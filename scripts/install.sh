@@ -620,6 +620,7 @@ install_shell_tools_bins() {
     mirror-helper \
     provider-profiles \
     quick-edit \
+    repo-helper \
     share-to-termux-setup \
     ssh-setup; do
     if [[ -f "$SCRIPT_DIR/$tool" ]]; then
@@ -1378,6 +1379,7 @@ command -v ai-cli-doctor >/dev/null 2>&1 && alias ai-status='ai-cli-doctor'
 command -v install-ai-cli >/dev/null 2>&1 && alias ai-install='install-ai-cli'
 command -v ai-skills >/dev/null 2>&1 && alias skills='ai-skills'
 command -v dashboard >/dev/null 2>&1 && alias dash='dashboard'
+command -v repo-helper >/dev/null 2>&1 && alias repos='repo-helper'
 
 # ── Omni & Nav dispatchers ────────────────────────────────
 

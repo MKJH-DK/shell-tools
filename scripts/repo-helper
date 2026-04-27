@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+VAULT_ROOT="$(cd "$ROOT_DIR/../../../.." && pwd)"
+REPOS_DIR="$VAULT_ROOT/03-common/03-repositories"
+
+usage() {
+  cat <<'EOF'
+repo-helper - infrastructure repo helper
+
+Usage:
+  repo-helper list
+  repo-helper status [repo]
+  repo-helper tui
+EOF
+}
+
+repo_list() {
+  find "$REPOS_DIR" -mindepth 2 -maxdepth 2 -type d -name .git -prune -o -type d 2>/dev/null |
+    while IFS= read -r dir; do
+      [[ -d "$dir/.git" ]] && printf '%s\n' "$dir"
+    done | sort
+}
+
+repo_status() {
+  local repo="${1:-$ROOT_DIR}"
+  git -C "$repo" status --short
+}
+
+repo_tui() {
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "repo-helper tui requires fzf" >&2
+    return 1
+  fi
+
+  local repo action
+  repo="$(repo_list | fzf --height=80% --layout=reverse --border --prompt='repo> ')" || return 0
+  action="$(printf '%s\n' status todo context pull shell | fzf --height=40% --layout=reverse --border --prompt='action> ')" || return 0
+
+  case "$action" in
+    status) git -C "$repo" status --short ;;
+    todo) "${EDITOR:-micro}" "$repo/TODO.md" ;;
+    context) "${EDITOR:-micro}" "$repo/memory/CONTEXT.md" ;;
+    pull) git -C "$repo" pull ;;
+    shell) cd "$repo" && "${SHELL:-sh}" ;;
+  esac
+}
+
+case "${1:-tui}" in
+  list) repo_list ;;
+  status) shift; repo_status "${1:-$ROOT_DIR}" ;;
+  tui) repo_tui ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac
