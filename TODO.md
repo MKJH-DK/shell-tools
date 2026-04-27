@@ -13,7 +13,7 @@
 - [x] **Project Jumper (`pj`)**: `fzf`-based directory switcher filtered for `.git` repos.
 - [x] **Command Analytics**: "Top 10 most used commands" report in System Info.
 - [x] **Ephemeral Snippets**: Temporary command buffer for session-specific tasks.
-- [ ] **Fast Top 3**: completion suggestions for common commands.
+- [x] **Fast Top 3**: completion suggestions for common commands.
 
 ## AI & Smart Tools
 - [ ] **AI Pipe (`fix`)**: Send last failed command output to AI for troubleshooting.

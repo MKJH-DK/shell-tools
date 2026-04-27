@@ -60,6 +60,25 @@ main_menu() {
          echo "Architecture: $(uname -m)"
          echo "Hostname: $(hostname)"
          echo ""
+         header "Top Commands"
+         if [[ -r "${HISTFILE:-$HOME/.zsh_history}" ]]; then
+           awk '
+             {
+               line=$0
+               sub(/^: [0-9]+:[0-9]+;/, "", line)
+               gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+               if (line == "") next
+               split(line, parts, /[[:space:]]+/)
+               count[parts[1]]++
+             }
+             END {
+               for (cmd in count) print count[cmd], cmd
+             }
+           ' "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null | sort -rn | head -n 10
+         else
+           echo "No zsh history found."
+         fi
+         echo ""
          printf "${REV} Press Enter to continue ${NORM}"
          read -r 
          ;;

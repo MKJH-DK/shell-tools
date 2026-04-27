@@ -1132,6 +1132,31 @@ alias snipr='snip run'
 alias snipe='snip edit'
 alias snipc='snip clear'
 
+# top3 - fast history suggestions for the current prefix
+__top3_lines() {
+  local prefix="${1:-}"
+  awk -v prefix="$prefix" '
+    {
+      line=$0
+      sub(/^: [0-9]+:[0-9]+;/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      if (line == "") next
+      if (prefix != "" && index(line, prefix) != 1) next
+      count[line]++
+    }
+    END {
+      for (cmd in count) print count[cmd] "\t" cmd
+    }
+  ' "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null |
+    sort -rn |
+    head -n 3 |
+    cut -f2-
+}
+
+top3() {
+  __top3_lines "$*"
+}
+
 # ── Tool integrations ─────────────────────────────────────
 
 # zoxide
@@ -1269,6 +1294,20 @@ __omni_widget() {
 }
 zle -N __omni_widget
 
+__fast_top3_widget() {
+  local selected
+  if command -v fzf >/dev/null 2>&1; then
+    selected="$(__top3_lines "$LBUFFER" | fzf --prompt='top3> ' --height=10 --layout=reverse --border)" || return 0
+  else
+    selected="$(__top3_lines "$LBUFFER" | head -n 1)"
+  fi
+  [[ -n "$selected" ]] || return 0
+  BUFFER="$selected"
+  CURSOR="${#BUFFER}"
+  zle reset-prompt
+}
+zle -N __fast_top3_widget
+
 autoload -U up-line-or-beginning-search
 autoload -U down-line-or-beginning-search
 zle -N up-line-or-beginning-search
@@ -1282,6 +1321,7 @@ bindkey '^[[B' __down_or_nav_widget
 bindkey '^[[A' up-line-or-beginning-search
 
 bindkey '^O' __omni_widget
+bindkey '^X^T' __fast_top3_widget
 
 # ── Platform-specific ─────────────────────────────────────
 
