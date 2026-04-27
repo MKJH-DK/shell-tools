@@ -1061,6 +1061,77 @@ wttr() { curl -s "wttr.in/${1:-}" | head -27; }
 # cheat.sh - command cheatsheets
 cheat() { curl -s "cheat.sh/$1"; }
 
+# cmdstats - show most used commands from zsh history
+cmdstats() {
+  local limit="${1:-10}"
+  awk '
+    {
+      line=$0
+      sub(/^: [0-9]+:[0-9]+;/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      if (line == "") next
+      split(line, parts, /[[:space:]]+/)
+      count[parts[1]]++
+    }
+    END {
+      for (cmd in count) print count[cmd], cmd
+    }
+  ' "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null |
+    sort -rn |
+    head -n "$limit"
+}
+
+# snip - ephemeral command snippets for the current machine
+__snip_file() {
+  local base="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+  echo "$base/shell-tools-snippets-${USER:-user}"
+}
+
+snip() {
+  local file="$(__snip_file)"
+  mkdir -p "$(dirname "$file")"
+
+  case "${1:-list}" in
+    add)
+      shift
+      if [[ $# -eq 0 ]]; then
+        echo "Usage: snip add <command>" >&2
+        return 1
+      fi
+      print -r -- "$*" >> "$file"
+      ;;
+    list)
+      [[ -f "$file" ]] && nl -ba "$file"
+      ;;
+    run)
+      if ! command -v fzf >/dev/null 2>&1; then
+        echo "snip run requires fzf" >&2
+        return 1
+      fi
+      local selected
+      selected="$(cat "$file" 2>/dev/null | fzf --prompt='snip> ' --height=80% --layout=reverse --border)" || return 0
+      [[ -n "$selected" ]] && print -s -- "$selected" && eval "$selected"
+      ;;
+    edit)
+      "${EDITOR:-micro}" "$file"
+      ;;
+    clear)
+      : > "$file"
+      ;;
+    file)
+      echo "$file"
+      ;;
+    *)
+      echo "Usage: snip {add|list|run|edit|clear|file}" >&2
+      return 1
+      ;;
+  esac
+}
+
+alias snipr='snip run'
+alias snipe='snip edit'
+alias snipc='snip clear'
+
 # ── Tool integrations ─────────────────────────────────────
 
 # zoxide

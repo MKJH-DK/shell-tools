@@ -11,8 +11,8 @@
 ## Shell Enhancements
 - [x] **Tab Completion Upgrade**: Integrate `fzf-tab` for visual completion.
 - [x] **Project Jumper (`pj`)**: `fzf`-based directory switcher filtered for `.git` repos.
-- [ ] **Command Analytics**: "Top 10 most used commands" report in System Info.
-- [ ] **Ephemeral Snippets**: Temporary command buffer for session-specific tasks.
+- [x] **Command Analytics**: "Top 10 most used commands" report in System Info.
+- [x] **Ephemeral Snippets**: Temporary command buffer for session-specific tasks.
 - [ ] **Fast Top 3**: completion suggestions for common commands.
 
 ## AI & Smart Tools
