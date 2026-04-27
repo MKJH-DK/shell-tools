@@ -15,7 +15,7 @@ CYAN='\033[0;36m'
 
 log_header() {
   clear
-  printf "${REV} %-78s ${NORM}\n" "  GNU nano setup 1.0  |  $1"
+  printf "${REV} %-78s ${NORM}\n" "  shell-tools 1.0  |  $1"
   echo ""
 }
 
@@ -48,11 +48,12 @@ main_menu() {
     log_header "Main Menu"
     
     local choice
-    choice=$(printf "1. Installations\n2. System Info\n3. Exit" | fzf --height 10% --layout=reverse --border --header="Select an option:")
+    choice=$(printf "1. Installations\n2. Config & Maintenance\n3. System Info\n4. Exit" | fzf --height 12% --layout=reverse --border --header="Select an option:")
 
     case "$choice" in
       "1. Installations") install_menu ;;
-      "2. System Info") 
+      "2. Config & Maintenance") config_menu ;;
+      "3. System Info")
          clear
          header "System Information"
          echo "OS: $(uname -s)"
@@ -82,11 +83,43 @@ main_menu() {
          printf "${REV} Press Enter to continue ${NORM}"
          read -r 
          ;;
-      "3. Exit"|*)
+      "4. Exit"|*)
          clear
          exit 0
          ;;
     esac
+  done
+}
+
+config_menu() {
+  while true; do
+    log_header "Config & Maintenance"
+
+    local options=(
+      "Quick Edit Configs|scripts/quick-edit"
+      "Environment Check|scripts/env-check"
+      "Update shell-tools|scripts/tool-update"
+      "SSH Setup|scripts/ssh-setup"
+      "Reset History|scripts/reset-zsh-history.sh"
+      "Back|back"
+    )
+
+    local fzf_input=""
+    for opt in "${options[@]}"; do
+      fzf_input+="${opt%%|*}\n"
+    done
+
+    local selected
+    selected=$(printf "$fzf_input" | fzf --height 18% --layout=reverse --border --header="Select tool:")
+
+    [[ -z "$selected" || "$selected" == "Back" ]] && return
+
+    for opt in "${options[@]}"; do
+      if [[ "${opt%%|*}" == "$selected" ]]; then
+        run_action "$selected" "${opt#*|}"
+        break
+      fi
+    done
   done
 }
 

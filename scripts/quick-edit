@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+EDITOR_BIN="${EDITOR:-micro}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing dependency: $1" >&2
+    exit 1
+  fi
+}
+
+edit_file() {
+  local file="$1"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+  "$EDITOR_BIN" "$file"
+}
+
+edit_sudoers() {
+  if command -v visudo >/dev/null 2>&1; then
+    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+      EDITOR="$EDITOR_BIN" visudo
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo EDITOR="$EDITOR_BIN" visudo
+    elif command -v doas >/dev/null 2>&1; then
+      doas env EDITOR="$EDITOR_BIN" visudo
+    else
+      echo "Need root, sudo, or doas for sudoers." >&2
+      return 1
+    fi
+  else
+    echo "visudo not found." >&2
+    return 1
+  fi
+}
+
+need fzf
+need "$EDITOR_BIN"
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+choice="$(
+  printf '%s\n' \
+    "zsh loader|$CONFIG_HOME/zsh/interactive-void.zsh" \
+    "zsh base module|$CONFIG_HOME/zsh/conf.d/00-base.zsh" \
+    "zsh local overrides|$CONFIG_HOME/zsh/local.zsh" \
+    "ssh config|$HOME/.ssh/config" \
+    "termux properties|$HOME/.termux/termux.properties" \
+    "sudoers|__sudoers__" |
+  fzf --height=40% --layout=reverse --border --delimiter='|' --with-nth=1 --header='Edit config:'
+)" || exit 0
+
+target="${choice#*|}"
+case "$target" in
+  __sudoers__) edit_sudoers ;;
+  *) edit_file "$target" ;;
+esac
