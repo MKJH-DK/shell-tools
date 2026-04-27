@@ -23,7 +23,7 @@
 - [x] **Provider Profiles**: Shared provider/model profiles for ShellGPT and other OpenAI-compatible CLIs.
 - [x] **AI CLI Shortcuts**: Standard aliases such as `cx`, `gm`, `cl`, `ask`, `ai-status`, and `ai-install`.
 - [x] **Cross-CLI Skills Sync**: Manage reusable skills/templates for Codex (`SKILL.md`), Claude (`SKILL.md`), and Gemini CLI extensions (`gemini-extension.json`/`GEMINI.md`).
-- [ ] **AI Skills Installer**: Add `ai-skills install <codex|claude|gemini> <skill>` and `ai-skills sync` for installing shared project skills into each CLI's expected location.
+- [x] **AI Skills Installer**: Add `ai-skills install <codex|claude|gemini> <skill>` and `ai-skills sync` for installing shared project skills into each CLI's expected location.
 
 ## Android & Termux Specifics
 - [ ] **Touch/Quick Fix**: ZLE widget to open current buffer in `micro` for easier mobile editing.

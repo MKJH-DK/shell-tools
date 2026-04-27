@@ -102,6 +102,7 @@ ai_menu() {
       "AI CLI Doctor|scripts/ai-cli-doctor"
       "AI CLI Installer|scripts/install-ai-cli"
       "Provider Profiles|scripts/provider-profiles"
+      "AI Skills|scripts/ai-skills"
       "ShellGPT Setup|scripts/setup-shellgpt.sh"
       "Back|back"
     )

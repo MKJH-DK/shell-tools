@@ -609,6 +609,7 @@ install_shell_tools_bins() {
   local tool
   for tool in \
     ai-cli-doctor \
+    ai-skills \
     ai-fix \
     config-sync \
     context-ask \
@@ -1371,6 +1372,7 @@ command -v gemini >/dev/null 2>&1 && alias gm='gemini'
 command -v claude >/dev/null 2>&1 && alias cl='claude'
 command -v ai-cli-doctor >/dev/null 2>&1 && alias ai-status='ai-cli-doctor'
 command -v install-ai-cli >/dev/null 2>&1 && alias ai-install='install-ai-cli'
+command -v ai-skills >/dev/null 2>&1 && alias skills='ai-skills'
 
 # ── Omni & Nav dispatchers ────────────────────────────────
 
