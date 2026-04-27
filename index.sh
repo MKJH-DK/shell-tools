@@ -99,6 +99,7 @@ ai_menu() {
     local options=(
       "AI Fix Last Failure|scripts/ai-fix"
       "Context Ask|scripts/context-ask"
+      "AI CLI Doctor|scripts/ai-cli-doctor"
       "AI CLI Installer|scripts/install-ai-cli"
       "ShellGPT Setup|scripts/setup-shellgpt.sh"
       "Back|back"
