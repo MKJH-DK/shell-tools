@@ -28,7 +28,7 @@
 ## Android & Termux Specifics
 - [x] **Touch/Quick Fix**: ZLE widget to open current buffer in `micro` for easier mobile editing.
 - [x] **Dashboard**: Minimalist welcome screen with battery, disk, and update status.
-- [ ] **Share-to-Termux**: Handlers for Android's "Share" intent (yt-dlp, file movement).
+- [x] **Share-to-Termux**: Handlers for Android's "Share" intent (yt-dlp, file movement).
 - [ ] **Arch Infra Helpers**: Specialized scripts for Arch Linux ARM/Termux environments.
 
 ## Maintenance

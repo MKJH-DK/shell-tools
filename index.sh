@@ -138,6 +138,7 @@ config_menu() {
       "Config Sync|scripts/config-sync"
       "Mirror Helper|scripts/mirror-helper"
       "Dashboard|scripts/dashboard"
+      "Share-to-Termux Setup|scripts/share-to-termux-setup"
       "Reset History|scripts/reset-zsh-history.sh"
       "Back|back"
     )

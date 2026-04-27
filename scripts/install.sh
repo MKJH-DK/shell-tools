@@ -618,6 +618,7 @@ install_shell_tools_bins() {
     mirror-helper \
     provider-profiles \
     quick-edit \
+    share-to-termux-setup \
     ssh-setup; do
     if [[ -f "$SCRIPT_DIR/$tool" ]]; then
       install -m 755 "$SCRIPT_DIR/$tool" "$LOCAL_BIN/$tool"

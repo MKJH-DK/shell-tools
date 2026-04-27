@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+BIN_DIR="$HOME/bin"
+TERMUX_DIR="$HOME/.termux"
+INBOX="${SHELL_TOOLS_SHARE_INBOX:-$HOME/storage/shared/shell-tools-share}"
+
+mkdir -p "$BIN_DIR" "$TERMUX_DIR" "$INBOX"
+
+cat > "$BIN_DIR/termux-url-opener" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+url="${1:-}"
+inbox="${SHELL_TOOLS_SHARE_INBOX:-$HOME/storage/shared/shell-tools-share}"
+mkdir -p "$inbox"
+
+if [[ -z "$url" ]]; then
+  exit 0
+fi
+
+case "$url" in
+  http://*|https://*)
+    if command -v yt-dlp >/dev/null 2>&1; then
+      printf '%s\n' "$url" >> "$inbox/urls.txt"
+      echo "Saved URL to $inbox/urls.txt"
+    else
+      printf '%s\n' "$url" >> "$inbox/urls.txt"
+      echo "yt-dlp missing; saved URL to $inbox/urls.txt"
+    fi
+    ;;
+  *)
+    printf '%s\n' "$url" >> "$inbox/shared-text.txt"
+    ;;
+esac
+EOF
+
+cat > "$BIN_DIR/termux-file-editor" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+file="${1:-}"
+inbox="${SHELL_TOOLS_SHARE_INBOX:-$HOME/storage/shared/shell-tools-share/files}"
+mkdir -p "$inbox"
+
+if [[ -n "$file" && -e "$file" ]]; then
+  cp -a "$file" "$inbox/"
+  echo "Copied to $inbox/$(basename "$file")"
+fi
+EOF
+
+chmod +x "$BIN_DIR/termux-url-opener" "$BIN_DIR/termux-file-editor"
+
+echo "Installed Termux share handlers:"
+echo "  $BIN_DIR/termux-url-opener"
+echo "  $BIN_DIR/termux-file-editor"
+echo "Inbox: $INBOX"
