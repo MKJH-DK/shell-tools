@@ -12,8 +12,13 @@ printf 'Shell: %s\n' "${SHELL:-unknown}"
 
 header "Battery"
 if command -v termux-battery-status >/dev/null 2>&1; then
-  timeout 2 termux-battery-status 2>/dev/null |
-    sed -n 's/[{},"]//g; s/^ *//; /percentage\|status\|temperature/p'
+  battery_output="$(timeout 2 termux-battery-status 2>/dev/null || true)"
+  if [[ -n "$battery_output" ]]; then
+    printf '%s\n' "$battery_output" |
+      sed -n 's/[{},"]//g; s/^ *//; /percentage\|status\|temperature/p'
+  else
+    echo "termux-battery-status timed out"
+  fi
 else
   echo "termux-battery-status unavailable"
 fi
