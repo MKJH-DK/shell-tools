@@ -1436,6 +1436,18 @@ __fast_top3_widget() {
 }
 zle -N __fast_top3_widget
 
+__edit_buffer_widget() {
+  local file
+  file="$(mktemp)"
+  print -r -- "$BUFFER" > "$file"
+  "${EDITOR:-micro}" "$file" </dev/tty >/dev/tty
+  BUFFER="$(cat "$file")"
+  CURSOR="${#BUFFER}"
+  rm -f "$file"
+  zle reset-prompt
+}
+zle -N __edit_buffer_widget
+
 autoload -U up-line-or-beginning-search
 autoload -U down-line-or-beginning-search
 zle -N up-line-or-beginning-search
@@ -1450,6 +1462,7 @@ bindkey '^[[A' up-line-or-beginning-search
 
 bindkey '^O' __omni_widget
 bindkey '^X^T' __fast_top3_widget
+bindkey '^X^E' __edit_buffer_widget
 
 # ── Platform-specific ─────────────────────────────────────
 
