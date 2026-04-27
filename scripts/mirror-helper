@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+detect_os() {
+  if [[ -n "${TERMUX_VERSION:-}" ]] || [[ "${PREFIX:-}" == *com.termux* ]]; then
+    echo "termux"
+  elif [[ -f /etc/arch-release ]]; then
+    echo "arch"
+  elif [[ -f /etc/debian_version ]]; then
+    echo "debian"
+  else
+    echo "unknown"
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+mirror-helper - package mirror helper
+
+Usage:
+  mirror-helper status
+  mirror-helper suggest
+  mirror-helper apply
+
+Termux:
+  apply runs termux-change-repo if available.
+
+Arch:
+  apply uses reflector or rate-mirrors when available.
+  Otherwise it prints the recommended install commands.
+EOF
+}
+
+run_root() {
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then "$@"
+  elif have sudo; then sudo "$@"
+  elif have doas; then doas "$@"
+  else echo "Need root/sudo/doas: $*" >&2; return 1
+  fi
+}
+
+status() {
+  local os
+  os="$(detect_os)"
+  echo "OS: $os"
+  case "$os" in
+    termux)
+      echo "PREFIX: ${PREFIX:-unknown}"
+      [[ -f "${PREFIX:-}/etc/apt/sources.list" ]] && sed -n '1,20p' "$PREFIX/etc/apt/sources.list"
+      ;;
+    arch)
+      if [[ -f /etc/pacman.d/mirrorlist ]]; then
+        grep -E '^[[:space:]]*Server' /etc/pacman.d/mirrorlist | head -n 10
+      fi
+      ;;
+    debian)
+      grep -RhsE '^[[:space:]]*deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null | head -n 10
+      ;;
+    *) echo "No mirror status support for this OS yet." ;;
+  esac
+}
+
+suggest() {
+  local os
+  os="$(detect_os)"
+  case "$os" in
+    termux)
+      echo "Recommended: run 'mirror-helper apply' and select a nearby Termux mirror."
+      echo "Fallback: pkg update && pkg upgrade"
+      ;;
+    arch)
+      if have reflector; then
+        echo "reflector command:"
+        echo "  sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist"
+      elif have rate-mirrors; then
+        echo "rate-mirrors command:"
+        echo "  rate-mirrors arch | sudo tee /etc/pacman.d/mirrorlist"
+      else
+        echo "Install one mirror tool:"
+        echo "  sudo pacman -S reflector"
+        echo "  yay -S rate-mirrors-bin"
+      fi
+      ;;
+    debian)
+      echo "Debian support is status-only for now. Use distro-specific mirror tools manually."
+      ;;
+    *) echo "No suggestions for this OS yet." ;;
+  esac
+}
+
+apply() {
+  local os
+  os="$(detect_os)"
+  case "$os" in
+    termux)
+      if have termux-change-repo; then
+        termux-change-repo
+      else
+        echo "termux-change-repo not found. Install/update Termux packages first." >&2
+        return 1
+      fi
+      ;;
+    arch)
+      if have reflector; then
+        run_root reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+      elif have rate-mirrors; then
+        rate-mirrors arch | run_root tee /etc/pacman.d/mirrorlist >/dev/null
+      else
+        suggest
+        return 1
+      fi
+      ;;
+    *)
+      suggest
+      return 1
+      ;;
+  esac
+}
+
+case "${1:-status}" in
+  status) status ;;
+  suggest) suggest ;;
+  apply) apply ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac

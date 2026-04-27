@@ -101,6 +101,7 @@ config_menu() {
       "Update shell-tools|scripts/tool-update"
       "SSH Setup|scripts/ssh-setup"
       "Config Sync|scripts/config-sync"
+      "Mirror Helper|scripts/mirror-helper"
       "Reset History|scripts/reset-zsh-history.sh"
       "Back|back"
     )
