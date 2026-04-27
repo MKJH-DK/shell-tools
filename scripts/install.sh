@@ -1345,6 +1345,7 @@ __source_first \
 # ── AI CLI aliases ────────────────────────────────────────
 command -v claude >/dev/null 2>&1 && alias ai='claude'
 command -v sgpt   >/dev/null 2>&1 && alias ask='sgpt'
+command -v context-ask >/dev/null 2>&1 && alias cask='context-ask'
 
 # ── Omni & Nav dispatchers ────────────────────────────────
 

@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+usage() {
+  cat <<'EOF'
+context-ask - ask an AI CLI with project context
+
+Usage:
+  context-ask "question"
+  echo "question" | context-ask
+
+Includes, when present:
+  AGENTS.md
+  TODO.md
+  memory/CONTEXT.md
+  git status --short
+EOF
+}
+
+pick_ai() {
+  if command -v ask >/dev/null 2>&1; then echo "ask"; return 0; fi
+  if command -v sgpt >/dev/null 2>&1; then echo "sgpt"; return 0; fi
+  if command -v claude >/dev/null 2>&1; then echo "claude"; return 0; fi
+  if command -v gemini >/dev/null 2>&1; then echo "gemini"; return 0; fi
+  if command -v codex >/dev/null 2>&1; then echo "codex"; return 0; fi
+  return 1
+}
+
+find_repo_root() {
+  git rev-parse --show-toplevel 2>/dev/null || pwd
+}
+
+collect_context() {
+  local root="$1"
+  for file in AGENTS.md TODO.md memory/CONTEXT.md; do
+    if [[ -f "$root/$file" ]]; then
+      printf '\n--- %s ---\n' "$file"
+      sed -n '1,220p' "$root/$file"
+    fi
+  done
+
+  if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    printf '\n--- git status --short ---\n'
+    git -C "$root" status --short
+  fi
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+question="$*"
+if [[ -z "$question" && ! -t 0 ]]; then
+  question="$(cat)"
+fi
+
+if [[ -z "$question" ]]; then
+  usage >&2
+  exit 1
+fi
+
+ai="$(pick_ai)" || {
+  echo "No supported AI CLI found: ask, sgpt, claude, gemini, codex" >&2
+  exit 1
+}
+
+root="$(find_repo_root)"
+context="$(collect_context "$root")"
+
+prompt="You are answering within this project context.
+
+$context
+
+--- user question ---
+$question"
+
+"$ai" "$prompt"

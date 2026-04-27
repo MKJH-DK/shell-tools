@@ -98,6 +98,7 @@ ai_menu() {
 
     local options=(
       "AI Fix Last Failure|scripts/ai-fix"
+      "Context Ask|scripts/context-ask"
       "ShellGPT Setup|scripts/setup-shellgpt.sh"
       "Back|back"
     )
